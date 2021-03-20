@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-	name="jinshisai",
+	name="imfits",
 	version='1.0',
 	description='Read and handle fits files for astronomy easily.',
 	author='Jinshi Sai',
