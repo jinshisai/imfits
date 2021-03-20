@@ -29,7 +29,7 @@ class Imfits():
 	'''
 
 
-	def __init__(self, infile, pv=False, relativecoords=True):
+	def __init__(self, infile, pv=False):
 		self.file = infile
 		self.data, self.header = fits.getdata(infile, header=True)
 
@@ -37,7 +37,7 @@ class Imfits():
 			self.read_pvfits()
 		else:
 			self.read_header()
-			self.get_coordinates(relative=relativecoords)
+			self.get_coordinates()
 			#self.fits_deprojection(relativecoords=relativecoords)
 
 		self.ifpv = pv
@@ -334,7 +334,7 @@ class Imfits():
 
 
 	# Get sky coordinates with astropy
-	def get_coordinates(self, relative=True):
+	def get_coordinates(self):
 		'''
 		Get sky coordinates.
 		'''
@@ -571,9 +571,8 @@ class Imfits():
 
 	# ------------------ for plot ---------------------
 	def draw_Idistmap(self, data=None, ax=None, outname=None, imscale=[], outformat='pdf', color=True, cmap='Greys',
-		colorbar=False, cbaroptions=np.array(['vertical','40','0','Jy/beam']), vmin=None,vmax=None,
-		contour=True, clevels=np.array([0.15, 0.3, 0.45, 0.6, 0.75, 0.9]), ccolor='k', mask=None,
-		xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
+		colorbar=False, cbaroptions=np.array(['vertical','40','0','Jy/beam']), axis=0, vmin=None,vmax=None,
+		contour=True, clevels=None, ccolor='k', xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
 		cstar=True, prop_star=np.array(['1','0.5','white']), logscale=False, bcolor='k',figsize=(11.69,8.27),
 		tickcolor='k',axiscolor='k',labelcolor='k',coord_center=None, map_center=None, plot_beam = True, interpolation=None,
 		noreg=True, inmode=None, exact_coord=False, arcsec=True):
@@ -713,9 +712,9 @@ class Imfits():
 		if len(data.shape) == 2:
 			pass
 		elif len(data.shape) == 3:
-			data = data[0,:,:]
+			data = data[axis,:,:]
 		elif len(data.shape) == 4:
-			data = data[0,0,:,:]
+			data = data[0,axis,:,:]
 		else:
 			print ('Error\tsingleim_to_fig: Input fits size is not corrected.\
 			 It is allowed only to have 3 or 4 axes. Check the shape of the fits file.')
