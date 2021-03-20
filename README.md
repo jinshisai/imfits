@@ -1,11 +1,11 @@
-Imfits
+imfits
 -----------------------
-Imfits is a python class to read fits files and contain header and image information in variables to call them easily. This is made for fits images especially at (sub)millimeter wavelengths obtained with like ALMA, ACA, SMA, JCMT, IRAM-30m and so on. Not guaranteed but could be applied to other fits data like at IR wavelengths.
+imfits is a python module to read, handle and analyze fits files for astronomy easily. The main function, Imfits, is a python class to contain header and image information in variables, making it easy to call them. This is made for fits images especially at (sub)millimeter wavelengths obtained with like ALMA, ACA, SMA, JCMT, IRAM-30m and so on. Not guaranteed but could be applied to other fits data like at IR wavelengths.
 
-A input fits file is expected to have four axes; RA, Dec, frequency and Stokes axes. Or it can also read fits files of position-velocity (PV) diagrams. The script is well tested For fits files exported from [CASA](https://casa.nrao.edu).
+Imfits can read fits files of position-velocity (PV) diagrams. The script is well tested for fits files exported from [CASA](https://casa.nrao.edu).
 
 
-**Required modules**
+**Requirements**
 - numpy
 - astropy
 - matplotlib
@@ -17,7 +17,16 @@ Jinshi Sai (Insa Choi)
 Department of Astronomy, the University of Tokyo
 
 
-How to use
+Install Imfits
+----
+You can get it easily using pip install.
+
+```bash
+pip install git+https://github.com/jinshisai/Imfits
+```
+
+
+Use Imfits
 ---------------
 
 Imfits read a fits file.
