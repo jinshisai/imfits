@@ -1,5 +1,4 @@
-from setuptools import setup
-from setuptools import find_packages
+from setuptools import setup, find_packages
 
 setup(
 	name="jinshisai",
@@ -7,7 +6,7 @@ setup(
 	description='Read and handle fits files for astronomy easily.',
 	author='Jinshi Sai',
 	author_email='jn.insa.sai@gmail.com',
-	url='https://github.com/jinshisai/Imfits',
+	url='https://github.com/jinshisai/Imfits.git',
 	packages=find_packages(),
 	classifiers=[
 	"Programming Language :: Python :: 3",
