@@ -694,26 +694,21 @@ class Imfits():
 			bmaj, bmin, bpa = self.beam
 
 		# coordinate style
-		xx = self.xx
-		yy = self.yy
-		cc = self.cc
 		if relativecoords:
 			if coord_center:
 				self.shift_coord_center(coord_center)
 				xx = self.xx
 				yy = self.yy
 				cc = self.cc
-			else:
-				if self.ctype == 'absolute':
-					x0, y0 = cc
-					xx = (xx - x0)*np.cos(np.radians(yy))
-					yy = yy - y0
 			xlabel = 'RA offset (arcsec)'
 			ylabel = 'DEC offset (arcsec)'
 		else:
 			print ('WARNING: Abusolute coordinates are still in development.')
 			xlabel = self.label_i[0]
 			ylabel = self.label_i[1]
+			xx = self.xx
+			yy = self.yy
+			cc = self.cc
 
 
 		# check data axes
