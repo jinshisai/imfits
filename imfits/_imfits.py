@@ -528,6 +528,8 @@ class Imfits():
 			sig_mom2 = np.sqrt(np.array([[
 				2./(np.count_nonzero(data[:,j,i]) - 1.) \
 				* (mom0[j,i]*mom2[j,i]*mom2[j,i]/(mom0[j,i] - (w2[j,i]/mom0[j,i])))**2.
+				if (np.count_nonzero(data[:,j,i]) - 1.) > 0
+				else 0.
 				for i in range(nx)]
 				for j in range(ny)]))
 
@@ -693,13 +695,15 @@ class Imfits():
 		else:
 			bmaj, bmin, bpa = self.beam
 
+
+		if coord_center:
+			self.shift_coord_center(coord_center)
+
 		# coordinate style
 		if relativecoords:
-			if coord_center:
-				self.shift_coord_center(coord_center)
-				xx = self.xx
-				yy = self.yy
-				cc = self.cc
+			xx = self.xx
+			yy = self.yy
+			cc = self.cc
 			xlabel = 'RA offset (arcsec)'
 			ylabel = 'DEC offset (arcsec)'
 		else:
