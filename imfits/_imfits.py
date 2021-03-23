@@ -581,7 +581,7 @@ class Imfits():
 
 	# ------------------ for plot ---------------------
 	def draw_Idistmap(self, data=None, ax=None, outname=None, imscale=[], outformat='pdf', color=True, cmap='Greys',
-		colorbar=False, cbaroptions=np.array(['vertical','40','0','Jy/beam']), axis=0, vmin=None,vmax=None,
+		colorbar=False, cbaroptions=np.array(['right','5%',0,'Jy/beam']), axis=0, vmin=None,vmax=None,
 		contour=True, clevels=None, ccolor='k', xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
 		cstar=True, prop_star=np.array(['1','0.5','white']), logscale=False, bcolor='k',figsize=(11.69,8.27),
 		tickcolor='k',axiscolor='k',labelcolor='k',coord_center=None, map_center=None, plot_beam = True, interpolation=None,
@@ -652,9 +652,9 @@ class Imfits():
 		# modules
 		import matplotlib.figure as figure
 		import matplotlib as mpl
-		#from mpl_toolkits.mplot3d import axes3d
 		from astropy.coordinates import SkyCoord
 		import matplotlib.patches as patches
+		from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 		# format
 		formatlist = np.array(['eps','pdf','png','jpeg'])
@@ -801,10 +801,9 @@ class Imfits():
 			# color bar
 			if colorbar:
 				cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
-				#divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
-				#cax     = divider.append_axes(cbar_loc, cbar_wd, pad=cbar_pad)
-				cbar    = fig.colorbar(imcolor, ax = ax, orientation=cbar_loc,
-				 aspect=float(cbar_wd), pad=float(cbar_pad))
+				divider = make_axes_locatable(ax)
+				cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=float(cbar_pad))
+				cbar    = plt.colorbar(imcolor, cax=cax )#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
 				cbar.set_label(cbar_lbl)
 
 		# contour map
