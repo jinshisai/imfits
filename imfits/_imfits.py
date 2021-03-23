@@ -463,15 +463,18 @@ class Imfits():
 			 for j in range(ny)]) # number of data points used for calculations
 
 
-		moments     = [mom0]
-		moments_err = []
+		if any([i == 0 for i in moment ]):
+			moments     = [mom0]
+			#moments_err = []
+		else:
+			moments     = []
+			#moments_err = []
 
 		# moment 1
 		if any([i >= 1 for i in moment ]):
 			mom1 = np.array([[np.sum((data[:,j,i]*vaxis*delv))
 				for i in range(nx)]
 				for j in range(ny)])/mom0
-			moments.append(mom1)
 
 
 			# calculate error
@@ -511,20 +514,25 @@ class Imfits():
 			#plt.show()
 
 			#moments_err.append(sig_mom1)
-			moments.append(sig_mom1)
+
+			if any([i == 1 for i in moment]):
+				moments.append(mom1)
+				moments.append(sig_mom1)
 
 
-		if any([i == 2 for i in moment ]):
+		if any([i == 2 for i in moment]):
 			mom2 = np.sqrt(np.array([[np.sum((data[:,j,i]*delv*(vaxis - mom1[j,i])**2.))
 			for i in range(nx)]
 			for j in range(ny)])/mom0)
-			moments.append(mom2)
 
-			sig_mom2 = np.sqrt(
-				2./(np.count_nonzero(data[:,j,i]) - 1.) * (mom0[j,i]*mom2[j,i]/(mom0[j,i] - (w2[j,i]/mom0[j,i])))**2.
-				)
+			sig_mom2 = np.sqrt(np.array([[
+				2./(np.count_nonzero(data[:,j,i]) - 1.) \
+				* (mom0[j,i]*mom2[j,i]*mom2[j,i]/(mom0[j,i] - (w2[j,i]/mom0[j,i])))**2.
+				for i in range(nx)]
+				for j in range(ny)]))
 
 			#moments_err.append(sig_mom2)
+			moments.append(mom2)
 			moments.append(sig_mom2)
 
 		print ('Done.')
