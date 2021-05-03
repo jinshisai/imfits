@@ -1,11 +1,11 @@
 imfits
 -----------------------
-imfits is a python module to read, handle and analyze fits files for astronomy easily. The main function, Imfits, is a python class to contain header and image information in variables, making it easy to call them. This is made for fits images especially at (sub)millimeter wavelengths obtained with like ALMA, ACA, SMA, JCMT, IRAM-30m and so on. Not guaranteed but could be applied to other fits data like at IR wavelengths.
+imfits is a python module to read, handle, analyze and draw maps from fits files for astronomy easily. Imfits, the python class contains header and image information in variables, making it easy to call them. This is made for fits images especially at (sub)millimeter wavelengths obtained with telescopes like ALMA, ACA, SMA, JCMT, IRAM-30m and so on. Not guaranteed but could be applied to other fits data like at IR wavelengths.
 
-Imfits can read fits files of position-velocity (PV) diagrams. The script is well tested for fits files exported from [CASA](https://casa.nrao.edu).
-
+Imfits can also read fits files of position-velocity (PV) diagrams. The script is well tested for fits files exported from [CASA](https://casa.nrao.edu).
 
 **Requirements**
+
 - numpy
 - astropy
 - matplotlib
@@ -46,16 +46,21 @@ xaxis = fitsdata.xaxis # Call x axis
 nx    = fitsdata.nx    # Size of xaxis
 ```
 
-You can also draw maps.
+You can also draw maps calling drawmaps. Moment maps, channel maps and PV diagrams are now supported.
 
 ```python
-# Moment maps
-fitsdata.draw_Idistmap(outname='map', outformat='pdf')
-# Just an example.
-# Put more options for the function to work correctly.
+from imfits import drawmaps
+
+# Moment map
+drawmaps.intensitymap(fitsdata, outname='test', outformat='pdf')
+# That's it! test.pdf is the drawn map.
+# You can put more options to draw beautiful maps.
+
+# Channel maps
+drawmaps.channelmaps(fitsdata, outname='test', outformat='pdf')
 ```
 
-Add ```pv=True``` as an option to read a fits file of a position-velocity (PV) diagram.
+Add an option ```pv=True``` to read a fits file of a position-velocity (PV) diagram.
 
 ```python
 from imfits import Imfits
