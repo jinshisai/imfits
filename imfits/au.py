@@ -197,3 +197,54 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
 	'''
 
 	return v0, v0_err, vgrad, vgrad_err, th_vgrad, th_vgrad_err
+
+
+
+def gaussian2D(x, y, A, mx, my, sigx, sigy, pa=0, peak=True):
+	'''
+	Generate normalized 2D Gaussian
+
+	Parameters
+	----------
+	 x: x value (coordinate)
+	 y: y value
+	 A: Amplitude. Not a peak value, but the integrated value.
+	 mx, my: mean values
+	 sigx, sigy: standard deviations
+	 pa: position angle [deg]. Counterclockwise is positive.
+	'''
+	x, y   = rotate2d(x,y,pa)
+	mx, my = rotate2d(mx, my, pa)
+
+	coeff = A if peak else A/(2.0*np.pi*sigx*sigy)
+	expx  = np.exp(-(x-mx)*(x-mx)/(2.0*sigx*sigx))
+	expy  = np.exp(-(y-my)*(y-my)/(2.0*sigy*sigy))
+	gauss = coeff*expx*expy
+	return gauss
+
+
+def rotate2d(x, y, angle, deg=True, coords=False):
+	'''
+	Rotate Cartesian coordinates.
+	Right hand direction will be positive.
+
+	array2d: input array
+	angle: rotational angle [deg or radian]
+	axis: rotatinal axis. (0,1,2) mean (x,y,z). Default x.
+	deg (bool): If True, angle will be treated as in degree. If False, as in radian.
+	'''
+
+	# degree --> radian
+	if deg:
+		angle = np.radians(angle)
+
+	if coords:
+		angle = -angle
+
+	cos = np.cos(angle)
+	sin = np.sin(angle)
+
+	xrot = x*cos - y*sin
+	yrot = x*sin + y*cos
+
+	return xrot, yrot

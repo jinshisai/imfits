@@ -332,8 +332,8 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 # Channel maps
 def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imscale=[], color=False, cbaron=False, cmap='Blues', vmin=None, vmax=None,
 	contour=True, clevels=np.array([0.15, 0.3, 0.45, 0.6, 0.75, 0.9]), ccolor='k',
-	nrow=5, ncol=5,velmin=None, velmax=None, nskip=1,
-	xticks=np.empty, yticks=np.empty, relativecoords=True, vsys=None, csize=14, scalebar=np.empty(0),
+	nrow=5, ncol=5,velmin=None, velmax=None, nskip=1, cw=0.5,
+	xticks=[], yticks=[], relativecoords=True, vsys=None, csize=14, scalebar=np.empty(0),
 	cstar=True, prop_star=[], logscale=False, tickcolor='k',axiscolor='k',
 	labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
 	cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
@@ -545,8 +545,6 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 	# Counter
 	i, j, gridi = [0,0,0]
 	gridimax    = nrow*ncol-1
-
-	nroop = nchan//nskip + 1
 	ax    = None
 
 	# Loop
@@ -579,7 +577,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 			imcolor = ax.imshow(Sv, cmap=cmap, origin='lower', extent=extent, norm=norm, rasterized=True)
 
 		if contour:
-			imcont  = ax.contour(Sv, colors=ccolor, origin='lower',extent=extent, levels=clevels, linewidths=0.5)
+			imcont  = ax.contour(Sv, colors=ccolor, origin='lower',extent=extent, levels=clevels, linewidths=cw)
 
 		# set axes
 		ax.set_xlim(figxmin,figxmax)
@@ -588,11 +586,12 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 		ax.spines["top"].set_color(axiscolor)
 		ax.spines["left"].set_color(axiscolor)
 		ax.spines["right"].set_color(axiscolor)
-		if xticks != np.empty and yticks != np.empty:
+		if len(xticks) != 0:
 			ax.set_xticks(xticks)
+
+		if len(yticks) != 0:
 			ax.set_yticks(yticks)
-		else:
-			pass
+
 
 		ax.set_aspect(1)
 		ax.tick_params(which='both', direction='in',bottom=True,
@@ -626,6 +625,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 			ax.hlines(pos_cstar[1], pos_cstar[0]-ll*0.5, pos_cstar[0]+ll*0.5, lw=lw, color=cl,zorder=11)
 			ax.vlines(pos_cstar[0], pos_cstar[1]-ll*0.5, pos_cstar[1]+ll*0.5, lw=lw, color=cl,zorder=11)
 
+		gridi += 1
 
 
 	# On the bottom-left corner pannel
@@ -696,7 +696,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 
 
 # Draw pv diagram
-def draw_pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=True,cmap='Greys',
+def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=True,cmap='Blues',
 	vmin=None,vmax=None,vsys=0,contour=True,clevels=None,ccolor='k', pa=None,
 	vrel=False,logscale=False,x_offset=False,ratio=1.2, prop_vkep=None,fontsize=14,
 	lw=1,clip=None,plot_res=True,inmode='fits',xranges=[], yranges=[],
