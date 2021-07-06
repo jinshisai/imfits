@@ -11,7 +11,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	color=True, cmap='Blues', colorbar=True, cbaroptions=np.array(['right','4%',0,'Jy/beam']), vmin=None,vmax=None,
 	contour=True, clevels=None, ccolor='k',
 	data=None, axis=0, xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
-	cstar=True, prop_star=[], logscale=False, bcolor='k',figsize=(11.69,8.27),
+	cstar=True, prop_star=[], color_norm=None, bcolor='k',figsize=(11.69,8.27),
 	tickcolor='k',axiscolor='k',labelcolor='k',coord_center=None, plot_beam = True,
 	interpolation=None, noreg=True, inmode=None, exact_coord=False):
 	'''
@@ -216,9 +216,15 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	else:
 		vmax = np.nanmax(data)
 
-	# logscale
-	if logscale:
-		norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
+	# color scale
+	if type(color_norm) == str:
+		if color_norm == 'log':
+			norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
+	elif type(color_norm) == tuple:
+		if hasattr(color_norm[0], '__call__'):
+			norm = mpl.colors.FuncNorm(color_norm, vmin=vmin, vmax=vmax)
+		else:
+			print ('ERROR\tintensitymap: color_norm must be strings or tuple of functions.')
 	else:
 		norm = mpl.colors.Normalize(vmin=vmin,vmax=vmax)
 
