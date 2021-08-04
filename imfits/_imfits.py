@@ -143,8 +143,12 @@ class Imfits():
 		xaxis = xaxis[:naxis_i[0]]                # offset, relative
 		yaxis = axes[1]
 		yaxis = yaxis[:naxis_i[1]]                # offset, relative
+		self.xaxis = xaxis
+		self.yaxis = yaxis
 		self.delx = xaxis[1] - xaxis[0]
 		self.dely = yaxis[1] - yaxis[0]
+		self.nx = naxis_i[0]
+		self.ny = naxis_i[1]
 
 		# frequency & stokes
 		if naxis >= 3:
@@ -184,9 +188,11 @@ class Imfits():
 				else:
 					self.delv = 1.
 
+		self.vaxis = vaxis
+		self.saxis = saxis
+
 		axes = np.array([xaxis, yaxis, vaxis, saxis], dtype=object)
 		self.axes  = axes
-		self.vaxis = vaxis
 
 
 	# Read fits file of Poistion-velocity (PV) diagram
@@ -372,10 +378,12 @@ class Imfits():
 
 		self.xx = xx
 		self.yy = yy
+		self.xaxis = xx[ny//2,:]
+		self.yaxis = yy[:,nx//2]
 		self.cc = np.array([ref_x, ref_y]) # coordinate center
 
 
-	def shift_coord_center(self, coord_center, relativecoords=True):
+	def shift_coord_center(self, coord_center):
 		'''
 		Shift the coordinate center.
 
