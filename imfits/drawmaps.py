@@ -8,7 +8,7 @@ from imfits import Imfits
 
 # intensity map
 def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
-	color=True, cmap='Blues', colorbar=True, cbaroptions=np.array(['right','4%',0,'Jy/beam']), vmin=None,vmax=None,
+	color=True, cmap='Blues', colorbar=True, cbaroptions=np.array(['right','4%','0%','Jy/beam']), vmin=None,vmax=None,
 	contour=True, clevels=None, ccolor='k',
 	data=None, axis=0, xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
 	cstar=True, prop_star=[], color_norm=None, bcolor='k',figsize=(11.69,8.27),
@@ -240,7 +240,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 		if colorbar:
 			cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
 			divider = make_axes_locatable(ax)
-			cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=float(cbar_pad))
+			cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
 			cbar    = plt.colorbar(imcolor, cax=cax )#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
 			cbar.set_label(cbar_lbl)
 
@@ -543,10 +543,25 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 		print ('ERROR\tchannelmaps: Input imscale is wrong. Must be [xmin, xmax, ymin, ymax]')
 
 
+	# data for plot
+	if velmax:
+		d_plt = data[vaxis <= velmax,:,:]
+		v_plt = vaxis[vaxis <= velmax]
+		nv_plt = len(v_plt)
+	else:
+		d_plt = data.copy()
+		v_plt = vaxis.copy()
+		nv_plt = len(v_plt)
+
+	if velmin:
+		d_plt  = d_plt[v_plt >= velmin,:,:]
+		v_plt  = v_plt[v_plt >= velmin]
+		nv_plt = len(v_plt)
+
 	if nskip:
-		data  = data[::nskip,:,:]
-		vaxis = vaxis[::nskip]
-		nchan = len(vaxis)
+		d_plt  = d_plt[::nskip,:,:]
+		v_plt  = v_plt[::nskip]
+		nv_plt = len(v_plt)
 
 	# Counter
 	i, j, gridi = [0,0,0]
@@ -554,25 +569,16 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 	ax    = None
 
 	# Loop
-	for ichan in range(nchan):
+	for ichan in range(nv_plt):
 		# maximum grid
 		if gridi > gridimax:
 			break
 
 		# Select channel
-		Sv = data[ichan,:,:]
+		Sv = d_plt[ichan,:,:]
 
 		# velocity at nchan
-		v_i = vaxis[ichan]
-
-		# Check whether v_i is within a selected velocity range
-		if velmax:
-			if v_i > velmax:
-				continue
-
-		if velmin:
-			if v_i < velmin:
-				continue
+		v_i = v_plt[ichan]
 
 		# Axis
 		ax = grid[gridi]
@@ -915,3 +921,31 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 	plt.savefig(outname, transparent=True)
 
 	return ax
+
+
+def generate_grid(nrow, ncol, figsize=(11.69, 8.27),
+	cbar_mode=None, axes_pad=(0.2, 0.2), share_all=True,
+	cbaroptions=['right', '3%', '0'], label_mode='1'):
+	'''
+	Generate grid to contain multiple figures. Just using ImageGrid of matplotlib but adjust default parameters for convenience.
+	 For more detail of the function, check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
+
+	Parameters
+	----------
+	 nrow(int): Number of rows
+	 ncol(int): Number of columns
+	 axes_pad (tuple or float): Padding between axes. In cases that tuple is given, it will be treated as (vertical, horizontal) padding.
+	 share_all (bool): Whether all axes share their x- and y-axis.
+	 cbarmode: If each, colorbar will be shown in each axis. If single, one common colorbar will be prepared. Default None.
+	'''
+
+	fig = plt.figure(figsize=figsize)
+
+	# Generate grid
+	cbar_loc, cbar_wd, cbar_pad = cbaroptions
+	grid = ImageGrid(fig, rect=111, nrows_ncols=(nrow,ncol),
+		axes_pad=axes_pad, share_all=share_all, cbar_mode=cbar_mode,
+		cbar_location=cbar_loc,cbar_size=cbar_wd, cbar_pad=cbar_pad,
+		label_mode=label_mode)
+
+	return grid
