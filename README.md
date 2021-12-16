@@ -25,17 +25,6 @@ You can get it easily using pip install.
 pip install git+https://github.com/jinshisai/Imfits
 ```
 
-Or at a directory you want to put this,
-
-```bash
-git clone https://github.com/jinshisai/Imfits
-```
-
-In the case of using git clone, to update it,
-```bash
-git pull
-````
-
 
 Use Imfits
 ---------------
