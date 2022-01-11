@@ -523,7 +523,8 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 
 
 	if grid:
-		pass
+		nrow = grid._nrows
+		ncol = grid._ncols
 	else:
 		fig = plt.figure(figsize=figsize)
 		 # Setting grid
