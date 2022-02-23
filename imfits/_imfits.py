@@ -419,11 +419,16 @@ class Imfits():
 
 
 	def getmoments(self, moment=[0], vrange=[], threshold=[],
-	 rms=None, outfits=False, outname=None, overwrite=False):
+		outfits=True, outname=None, overwrite=False):
 		'''
 		Calculate moment maps.
 
-		moment(list): Index of moments that you want to calculate.
+		moment (list): Index of moments that you want to calculate.
+		vrange (list): Velocity range to calculate moment maps.
+		threshold (list): Threshold to clip data. Shoul be given as [minimum intensity, maximum intensity]
+		outfits (bool): Output as a fits file?
+		outname (str): Output file name if outfits=True.
+		overwrite (bool): If overwrite an existing fits file or not.
 		'''
 
 		data  = self.data
