@@ -9,7 +9,7 @@ from imfits import Imfits
 # intensity map
 def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	color=True, cmap='Blues', colorbar=True, cbaroptions=np.array(['right','4%','0%','Jy/beam']), vmin=None,vmax=None,
-	contour=True, clevels=None, ccolor='k',
+	contour=True, clevels=None, ccolor='k', clw=1,
 	data=None, axis=0, xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
 	cstar=True, prop_star=[], color_norm=None, bcolor='k',figsize=(11.69,8.27),
 	tickcolor='k',axiscolor='k',labelcolor='k',coord_center=None, plot_beam = True,
@@ -247,9 +247,11 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	# contour map
 	if contour:
 		if exact_coord:
-			imcont = ax.contour(xx, yy, data, colors=ccolor, origin='lower', levels=clevels, linewidths=1)
+			imcont = ax.contour(xx, yy, data, colors=ccolor,
+				origin='lower', levels=clevels, linewidths=clw)
 		else:
-			imcont = ax.contour(data, colors=ccolor, origin='lower', levels=clevels,linewidths=1, extent=(xmin,xmax,ymin,ymax))
+			imcont = ax.contour(data, colors=ccolor, origin='lower', levels=clevels,
+				linewidths=clw, extent=(xmin,xmax,ymin,ymax))
 
 
 	# set axes
