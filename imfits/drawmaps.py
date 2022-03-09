@@ -766,7 +766,7 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 			return
 		naxis = len(data.shape)
 	else:
-		data   = self.data
+		data   = np.squeeze(self.data)
 		header = self.header
 		naxis  = self.naxis
 
@@ -779,8 +779,8 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 		ax  = fig.add_subplot(111)
 
 	# Read
-	xaxis = self.xaxis
-	vaxis = self.vaxis
+	xaxis = self.xaxis.copy()
+	vaxis = self.vaxis.copy()
 	delx  = self.delx
 	delv  = self.delv
 	nx    = len(xaxis)
@@ -829,7 +829,6 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 
 	# set axes
 	if x_offset:
-		data   = data[0,:,:]
 		extent = (offmin,offmax,velmin,velmax)
 		xlabel = offlabel
 		ylabel = vlabel
@@ -838,7 +837,7 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 		res_x = res_off
 		res_y = delv
 	else:
-		data   = np.rot90(data[0,:,:])
+		data   = data.T
 		extent = (velmin,velmax,offmin,offmax)
 		xlabel = vlabel
 		ylabel = offlabel
