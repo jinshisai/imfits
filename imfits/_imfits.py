@@ -15,7 +15,6 @@ from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 
 
-
 ### Constants (in cgs)
 clight     = 2.99792458e10 # light speed [cm s^-1]
 
@@ -416,6 +415,24 @@ class Imfits():
 		self.xx = alpha
 		self.yy = delta
 		self.cc = new_cent
+
+
+	def convert_units(self, conversion='IvtoTb'):
+		'''
+		Unit conversion
+		'''
+		from .astrfuncs import IvTOJT, TbTOIv
+
+		if conversion == 'IvtoTb':
+			self.data = IvTOJT(self.data, self.restfreq, 
+				self.beam[0]/3600, self.beam[1]/3600.)
+		elif conversion == 'TbtoIv':
+			self.data = TbTOIv(self.data, self.restfreq, 
+				self.beam[0]/3600, self.beam[1]/3600.)
+		else:
+			print ('ERROR\tconvert_units: Currently\
+				only Iv <--> Tb conversion is supported.')
+			return
 
 
 	def getmoments(self, moment=[0], vrange=[], threshold=[],
