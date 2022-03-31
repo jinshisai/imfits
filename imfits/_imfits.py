@@ -420,8 +420,15 @@ class Imfits():
 	def convert_units(self, conversion='IvtoTb'):
 		'''
 		Unit conversion
+
+		Parameters
+		----------
+			coversion (str):
+			 IvtoTb -- Convert Iv to Tb
+			 TbtoIv -- Convert Tb to Iv
+			 pas2topbm --  Convert Jy/arcsec^2 to Jy/beam
 		'''
-		from .astrfuncs import IvTOJT, TbTOIv
+		from .mapunit import IvTOJT, TbTOIv
 
 		if conversion == 'IvtoTb':
 			self.data = IvTOJT(self.data, self.restfreq, 
@@ -429,9 +436,13 @@ class Imfits():
 		elif conversion == 'TbtoIv':
 			self.data = TbTOIv(self.data, self.restfreq, 
 				self.beam[0]/3600, self.beam[1]/3600.)
+		elif conversion == 'pas2topbm':
+			self.data = pas2TOpbm(self.data, self.delx, 
+				self.dely, self.beam[0]/3600., self.beam[1]/3600.)
 		else:
-			print ('ERROR\tconvert_units: Currently\
-				only Iv <--> Tb conversion is supported.')
+			print ('ERROR\tconvert_units: \
+				Currently supported conversions are\
+				Iv <--> Tb and Jy/arcsec^2 to Jy/beam.')
 			return
 
 
