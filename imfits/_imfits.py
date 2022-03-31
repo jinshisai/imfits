@@ -428,7 +428,7 @@ class Imfits():
 			 TbtoIv -- Convert Tb to Iv
 			 pas2topbm --  Convert Jy/arcsec^2 to Jy/beam
 		'''
-		from .mapunit import IvTOJT, TbTOIv
+		from .mapunit import IvTOJT, TbTOIv, pas2TOpbm
 
 		if conversion == 'IvtoTb':
 			self.data = IvTOJT(self.data, self.restfreq, 
