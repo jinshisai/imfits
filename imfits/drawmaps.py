@@ -715,7 +715,8 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 	vmin=None,vmax=None,vsys=0,contour=True,clevels=None,ccolor='k', pa=None,
 	vrel=False,logscale=False,x_offset=False,ratio=1.2, prop_vkep=None,fontsize=14,
 	lw=1,clip=None,plot_res=True,inmode='fits',xranges=[], yranges=[],
-	ln_hor=True, ln_var=True, alpha=None):
+	ln_hor=True, ln_var=True, alpha=None, colorbar=False,
+	cbaroptions=('right', '3%', '0%', r'(Jy beam$^{-1}$)')):
 	'''
 	Draw a PV diagram.
 
@@ -726,6 +727,7 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 	# Modules
 	import copy
 	import matplotlib as mpl
+	from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 	# format
 	formatlist = np.array(['eps','pdf','png','jpeg'])
@@ -871,14 +873,34 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 		imcolor = ax.imshow(data_color, cmap=cmap, origin='lower',
 			extent=extent, norm=norm, alpha=alpha)
 
+		# color bar
+		if colorbar:
+			cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+			if cbar_loc != 'right':
+				print ('WARNING\tpvdiagram: only right is supported for \
+					colorbar location. Your input is ignored.')
+			axin_cb = inset_axes(ax,
+				width=cbar_wd,
+				height='100%',
+				loc='lower left',
+				bbox_to_anchor=(1.0 + float(cbar_pad.strip('%'))*0.01, 0., 1., 1.),
+				bbox_transform=ax.transAxes,
+				borderpad=0)
+			cbar = plt.colorbar(imcolor, cax=axin_cb)
+			cbar.set_label(cbar_lbl)
+			#divider = make_axes_locatable(ax)
+			#cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
+			#cbar    = plt.colorbar(imcolor, cax=cax )#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
+			#cbar.set_label(cbar_lbl)
+
 	if contour:
 		imcont  = ax.contour(data, colors=ccolor, origin='lower',
 			extent=extent, levels=clevels, linewidths=lw, alpha=alpha)
 
 
 	# axis labels
-	ax.set_xlabel(xlabel)
-	ax.set_ylabel(ylabel)
+	ax.set_xlabel(xlabel, fontsize=fontsize)
+	ax.set_ylabel(ylabel, fontsize=fontsize)
 
 	# set xlim, ylim
 	if len(xranges) == 0:
@@ -906,7 +928,9 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 	if ln_var:
 		yline = plt.vlines(vline_params[0], vline_params[1], vline_params[2], ccolor, linestyles='dashed', linewidths = 1.)
 
-	ax.tick_params(which='both', direction='in',bottom=True, top=True, left=True, right=True, pad=9)
+	ax.tick_params(which='both', direction='in',
+		bottom=True, top=True, left=True, right=True,
+		pad=9, labelsize=fontsize)
 
 	# plot resolutions
 	if plot_res:
