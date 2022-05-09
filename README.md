@@ -14,16 +14,28 @@ Imfits can also read fits files of position-velocity (PV) diagrams. The script i
 **Contanct**  
 E-mail: jn.insa.sai@gmail.com  
 Jinshi Sai (Insa Choi)  
-Department of Astronomy, the University of Tokyo
+Academia Sinica Institute of Astronomy and Astrophysics (ASIAA),  
+Taipei, Taiwan  
+Website: [jinshisai.github.io](https://jinshisai.github.io)
 
 
 Install Imfits
 ----
-You can get it easily using pip install.
+You can get it using `git clone`.
+
+```bash
+git clone https://github.com/jinshisai/Imfits
+```
+run `git pull` in the Imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module.
+
+
+`pip` install is also available but `git clone` & `git pull` is recommended to catch up all updates. If you wish to use `pip`, type
+
 
 ```bash
 pip install git+https://github.com/jinshisai/Imfits
 ```
+
 
 
 Use Imfits
