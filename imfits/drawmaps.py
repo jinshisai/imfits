@@ -337,9 +337,9 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 # Channel maps
 def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imscale=[], color=False, cbaron=False, cmap='Blues', vmin=None, vmax=None,
 	contour=True, clevels=np.array([0.15, 0.3, 0.45, 0.6, 0.75, 0.9]), ccolor='k',
-	nrow=5, ncol=5,velmin=None, velmax=None, nskip=1, cw=0.5,
+	nrow=5, ncol=5,velmin=None, velmax=None, nskip=1, cw=0.5, color_norm=None,
 	xticks=[], yticks=[], relativecoords=True, vsys=None, csize=14, scalebar=np.empty(0),
-	cstar=True, prop_star=[], logscale=False, tickcolor='k',axiscolor='k',
+	cstar=True, prop_star=[], tickcolor='k', axiscolor='k',
 	labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
 	cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
 	cbaroptions=np.array(['right','5%','0%']), inmode='fits', vlabel_on=True):
@@ -512,8 +512,18 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 	vmax = vmax if vmax is not None else np.nanmax(data)
 	vmin = vmin if vmin is not None else np.nanmin(data)
 
-	# Logscale
-	norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax) if logscale else mpl.colors.Normalize(vmin=vmin,vmax=vmax)
+
+	# color scale
+	if type(color_norm) == str:
+		if color_norm == 'log':
+			norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
+	elif type(color_norm) == tuple:
+		if hasattr(color_norm[0], '__call__'):
+			norm = mpl.colors.FuncNorm(color_norm, vmin=vmin, vmax=vmax)
+		else:
+			print ('ERROR\tintensitymap: color_norm must be strings or tuple of functions.')
+	else:
+		norm = mpl.colors.Normalize(vmin=vmin,vmax=vmax)
 
 
 	# !!! Plot !!!
