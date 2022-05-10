@@ -211,10 +211,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 
 
 	# set colorscale
-	if vmax:
-		pass
-	else:
-		vmax = np.nanmax(data)
+	if vmax is None: vmax = np.nanmax(data)
 
 	# color scale
 	if type(color_norm) == str:
@@ -512,8 +509,8 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 
 
 	# Set colorscale
-	vmax = vmax if vmax else np.nanmax(data)
-	vmin = vmin if vmin else np.nanmin(data)
+	vmax = vmax if vmax is not None else np.nanmax(data)
+	vmin = vmin if vmin is not None else np.nanmin(data)
 
 	# Logscale
 	norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax) if logscale else mpl.colors.Normalize(vmin=vmin,vmax=vmax)
