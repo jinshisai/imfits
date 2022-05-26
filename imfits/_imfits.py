@@ -154,11 +154,13 @@ class Imfits():
 			# frequency
 			vaxis = axes[2]
 			vaxis = vaxis[:naxis_i[2]] + refval_i[2]  # frequency, absolute
+			self.nv = naxis_i[2]
 
 			if naxis == 4:
 				# stokes
 				saxis = axes[3]
 				saxis = saxis[:naxis_i[3]]
+				self.ns = naxis_i[3]
 			else:
 				saxis = np.array([0.])
 		else:
@@ -377,8 +379,8 @@ class Imfits():
 
 		self.xx = xx
 		self.yy = yy
-		self.xaxis = xx[ny//2,:]
-		self.yaxis = yy[:,nx//2]
+		#self.xaxis = xx[ny//2,:]
+		#self.yaxis = yy[:,nx//2]
 		self.cc = np.array([ref_x, ref_y]) # coordinate center
 
 
@@ -620,217 +622,81 @@ class Imfits():
 		return moments
 
 
-	# Draw pv diagram
-	def draw_pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=True,cmap='Greys',
-		vmin=None,vmax=None,vsys=0,contour=True,clevels=None,ccolor='k', pa=None,
-		vrel=False,logscale=False,x_offset=False,ratio=1.2, prop_vkep=None,fontsize=14,
-		lw=1,clip=None,plot_res=True,inmode='fits',xranges=[], yranges=[],
-		ln_hor=True, ln_var=True, alpha=None):
+	# trim data to make it light
+	def trim_data(self,
+		xlim: list = [],
+		ylim: list = [],
+		vlim: list = [],
+		slim: list = []):
 		'''
-		Draw a PV diagram.
+		Trim a cube image without interpolation to fit to given axis ranges.
 
-		Args:
-		 - outname:
+		Parameters
+		----------
+			xlim (list): x range. Must be given as [xmin, xmax] in arcsec.
+			ylim (list): y range. Must be given as [ymin, ymax] in arcsec.
+			vlim (list): v range. Must be given as [vmin, vmax] in arcsec.
 		'''
-
-		# Modules
-		import copy
-		import matplotlib as mpl
-
-		# format
-		formatlist = np.array(['eps','pdf','png','jpeg'])
-
-		# properties of plots
-		#mpl.use('Agg')
-		plt.rcParams['font.family']     ='Arial' # font (Times New Roman, Helvetica, Arial)
-		plt.rcParams['xtick.direction'] = 'in'   # directions of x ticks ('in'), ('out') or ('inout')
-		plt.rcParams['ytick.direction'] = 'in'   # directions of y ticks ('in'), ('out') or ('inout')
-		plt.rcParams['font.size']       = fontsize  # fontsize
-
-		def change_aspect_ratio(ax, ratio):
-			'''
-			This function change aspect ratio of figure.
-			Parameters:
-			    ax: ax (matplotlit.pyplot.subplots())
-			        Axes object
-			    ratio: float or int
-			        relative x axis width compared to y axis width.
-			'''
-			aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0]) / (ax.get_ylim()[1] - ax.get_ylim()[0])
-			aspect = np.abs(aspect)
-			aspect = float(aspect)
-			ax.set_aspect(aspect)
-
-
-		# output file
-		if (outformat == formatlist).any():
-			outname = outname + '.' + outformat
-		else:
-			print ('ERROR\tsingleim_to_fig: Outformat is wrong.')
-			return
-
-		# Input
-		if inmode == 'data':
-			if data is None:
-				print ("inmode ='data' is selected. data must be provided.")
-				return
-			naxis = len(data.shape)
-		else:
-			data   = self.data
-			header = self.header
-			naxis  = self.naxis
-
-
-		# figures
-		if ax:
-			pass
-		else:
-			fig = plt.figure(figsize=(11.69,8.27)) # figsize=(11.69,8.27)
-			ax  = fig.add_subplot(111)
-
-		# Read
-		xaxis = self.xaxis
-		vaxis = self.vaxis
-		delx  = self.delx
-		delv  = self.delv
-		nx    = len(xaxis)
-		nv    = len(vaxis)
-
-		# Beam
-		bmaj, bmin, bpa = self.beam
-
-		if self.res_off:
-			res_off = self.res_off
-		else:
-			# Resolution along offset axis
-			if self.pa:
-				pa = self.pa
-
-			if pa:
-				# an ellipse of the beam
-				# (x/bmin)**2 + (y/bmaj)**2 = 1
-				# y = x*tan(theta)
-				# --> solve to get resolution in the direction of pv cut with P.A.=pa
-				del_pa = pa - bpa
-				del_pa = del_pa*np.pi/180. # radian
-				term_sin = (np.sin(del_pa)/bmin)**2.
-				term_cos = (np.cos(del_pa)/bmaj)**2.
-				res_off  = np.sqrt(1./(term_sin + term_cos))
+		def index_between(t, tlim, mode='all'):
+			if not (len(tlim) == 2):
+				if mode=='all':
+					return np.full(np.shape(t), True)
+				elif mode == 'edge':
+					if len(t.shape) == 1:
+						return [0, len(t)-1]
+					else:
+						return [[0, t.shape[i]] for i in range(len(t.shape))]
+				else:
+					print('index_between: mode parameter is not right.')
+					return np.full(np.shape(t), True)
 			else:
-				res_off = bmaj
+				if mode=='all':
+					return (tlim[0] <= t) * (t <= tlim[1])
+				elif mode == 'edge':
+					nonzero = np.nonzero((tlim[0] <= t) * (t <= tlim[1]))
+					return tuple([[np.min(i), np.max(i)] for i in nonzero])
+				else:
+					print('index_between: mode parameter is not right.')
+					return (tlim[0] <= t) * (t <= tlim[1])
 
-		# relative velocity or LSRK
-		offlabel = r'$\mathrm{Offset\ (arcsec)}$'
-		if vrel:
-			vaxis   = vaxis - vsys
-			vlabel  = r'$\mathrm{Relative\ velocity\ (km\ s^{-1})}$'
-			vcenter = 0
+		xlim = np.array(xlim)/3600. # arcsec --> deg
+		ylim = np.array(ylim)/3600. # arcsec --> deg
+		if self.naxis == 2:
+			yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
+			ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
+			self.data    = self.data[yimin:yimax+1, ximin:ximax+1]
+			self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
+			self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
+			self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
+			self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
+			self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
+			self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+		elif self.naxis == 3:
+			vimin, vimax = index_between(self.vaxis, vlim, mode='edge')[0]
+			yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
+			ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
+			self.data    = self.data[vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
+			self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
+			self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
+			self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
+			self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
+			self.vaxis   = self.vaxis[index_between(self.vaxis, vlim)]
+			self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
+			self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+		elif self.naxis == 4:
+			simin, simax = index_between(self.saxis, slim, mode='edge')[0]
+			vimin, vimax = index_between(self.vaxis, vlim, mode='edge')[0]
+			yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
+			ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
+			self.data    = self.data[simin:simax+1, vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
+			self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
+			self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
+			self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
+			self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
+			self.saxis   = self.saxis[index_between(self.saxis, slim)]
+			self.vaxis   = self.vaxis[index_between(self.vaxis, vlim)]
+			self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
+			self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
 		else:
-			vlabel  = r'$\mathrm{LSR\ velocity\ (km\ s^{-1})}$'
-			vcenter = vsys
-
-
-		# set extent of an image
-		offmin = xaxis[0] - delx*0.5
-		offmax = xaxis[-1] + delx*0.5
-		velmin = vaxis[0] - delv*0.5
-		velmax = vaxis[-1] + delv*0.5
-
-
-		# set axes
-		if x_offset:
-			data   = data[0,:,:]
-			extent = (offmin,offmax,velmin,velmax)
-			xlabel = offlabel
-			ylabel = vlabel
-			hline_params = [vsys,offmin,offmax]
-			vline_params = [0.,velmin,velmax]
-			res_x = res_off
-			res_y = delv
-		else:
-			data   = np.rot90(data[0,:,:])
-			extent = (velmin,velmax,offmin,offmax)
-			xlabel = vlabel
-			ylabel = offlabel
-			hline_params = [0.,velmin,velmax]
-			vline_params = [vcenter,offmin,offmax]
-			res_x = delv
-			res_y = res_off
-
-
-		# set colorscale
-		if vmax:
-			pass
-		else:
-			vmax = np.nanmax(data)
-
-
-		# logscale
-		if logscale:
-			norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
-		else:
-			norm = mpl.colors.Normalize(vmin=vmin,vmax=vmax)
-
-
-		# clip data at some value
-		data_color = copy.copy(data)
-		if clip:
-			data_color[np.where(data < clip)] = np.nan
-
-		# plot images
-		if color:
-			imcolor = ax.imshow(data_color, cmap=cmap, origin='lower',
-				extent=extent, norm=norm, alpha=alpha)
-
-		if contour:
-			imcont  = ax.contour(data, colors=ccolor, origin='lower',
-				extent=extent, levels=clevels, linewidths=lw, alpha=alpha)
-
-
-		# axis labels
-		ax.set_xlabel(xlabel)
-		ax.set_ylabel(ylabel)
-
-		# set xlim, ylim
-		if len(xranges) == 0:
-			ax.set_xlim(extent[0],extent[1])
-		elif len(xranges) == 2:
-			xmin, xmax = xranges
-			ax.set_xlim(xmin, xmax)
-		else:
-			print ('WARRING: Input xranges is wrong. Must be [xmin, xmax].')
-			ax.set_xlim(extent[0],extent[1])
-
-		if len(yranges) == 0:
-			ax.set_ylim(extent[2],extent[3])
-		elif len(yranges) == 2:
-			ymin, ymax = yranges
-			ax.set_ylim(ymin, ymax)
-		else:
-			print ('WARRING: Input yranges is wrong. Must be [ymin, ymax].')
-			ax.set_ylim(extent[2],extent[3])
-
-
-		# lines showing offset 0 and relative velocity 0
-		if ln_hor:
-			xline = plt.hlines(hline_params[0], hline_params[1], hline_params[2], ccolor, linestyles='dashed', linewidths = 1.)
-		if ln_var:
-			yline = plt.vlines(vline_params[0], vline_params[1], vline_params[2], ccolor, linestyles='dashed', linewidths = 1.)
-
-		ax.tick_params(which='both', direction='in',bottom=True, top=True, left=True, right=True, pad=9)
-
-		# plot resolutions
-		if plot_res:
-			# x axis
-			#print (res_x, res_y)
-			res_x_plt, res_y_plt = ax.transLimits.transform((res_x*0.5, res_y*0.5)) -  ax.transLimits.transform((0, 0)) # data --> Axes coordinate
-			ax.errorbar(0.1, 0.1, xerr=res_x_plt, yerr=res_y_plt, color=ccolor, capsize=3, capthick=1., elinewidth=1., transform=ax.transAxes)
-
-		# aspect ratio
-		if ratio:
-			change_aspect_ratio(ax, ratio)
-
-		# save figure
-		plt.savefig(outname, transparent=True)
-
-		return ax
+			print('trim_data: Invalid data shape.')
+			return -1

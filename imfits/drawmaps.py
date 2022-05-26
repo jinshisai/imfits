@@ -139,33 +139,6 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 		data  = self.data
 		naxis = self.naxis
 
-
-	if self.beam is None:
-		plot_beam = False
-	else:
-		bmaj, bmin, bpa = self.beam
-
-
-	if coord_center:
-		self.shift_coord_center(coord_center)
-
-
-	# coordinate style
-	if relativecoords:
-		xx = self.xx
-		yy = self.yy
-		cc = self.cc
-		xlabel = 'RA offset (arcsec)'
-		ylabel = 'DEC offset (arcsec)'
-	else:
-		print ('WARNING: Abusolute coordinates are still in development.')
-		xlabel = self.label_i[0]
-		ylabel = self.label_i[1]
-		xx = self.xx
-		yy = self.yy
-		cc = self.cc
-
-
 	# check data axes
 	if len(data.shape) == 2:
 		pass
@@ -178,37 +151,51 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 		 Must have 2 to 4 axes. Check the shape of the input image.')
 		return
 
-	# deg --> arcsec
-	xx     = xx*3600.
-	yy     = yy*3600.
-
-	# figure extent
-	xmin   = xx[0,0]
-	xmax   = xx[-1,-1]
-	ymin   = yy[0,0]
-	ymax   = yy[-1,-1]
-	del_x  = xx[1,1] - xx[0,0]
-	del_y  = yy[1,1] - yy[0,0]
-	extent = (xmin-0.5*del_x, xmax+0.5*del_x, ymin-0.5*del_y, ymax+0.5*del_y)
-	#print (extent)
-
-	# image scale
-	if len(imscale) == 0:
-		figxmin, figxmax, figymin, figymax = extent  # arcsec
-
-		if figxmin < figxmax:
-			cp      = figxmax
-			figxmax = figxmin
-			figxmin = cp
-
-		if figymin > figymax:
-			cp = figymax
-			figymax = figymin
-			figymin = cp
-	elif len(imscale) == 4:
-		figxmax, figxmin, figymin, figymax = imscale # arcsec
+	# beam
+	if self.beam is None:
+		plot_beam = False
 	else:
-		print ('ERROR\tIdistmap: Input imscale is wrong. Must be [xmin, xmax, ymin, ymax]')
+		bmaj, bmin, bpa = self.beam
+
+	# center
+	if coord_center:
+		self.shift_coord_center(coord_center)
+
+	# coordinate style
+	if relativecoords:
+		cc    = self.cc
+		xaxis = self.xaxis*3600.
+		yaxis = self.yaxis*3600.
+		xlabel = 'RA offset (arcsec)'
+		ylabel = 'DEC offset (arcsec)'
+	else:
+		print ('WARNING: Abusolute coordinates are still in development.')
+		xlabel = self.label_i[0]
+		ylabel = self.label_i[1]
+		cc    = self.cc
+		xaxis = xx_wcs[self.nx//2,:] # not exactly though
+		yaxis = yy_wcs[:,self.ny//2]
+
+
+	# trim data for plot
+	if len(imscale) == 0:
+		xmin, xmax = xaxis[[0,-1]]
+		ymin, ymax = yaxis[[0,-1]]
+		extent = (xmin-0.5*self.delx, xmax+0.5*self.delx, ymin-0.5*self.dely, ymax+0.5*self.dely)
+		figxmin, figxmax, figymin, figymax = extent
+		data, xaxis, yaxis = trim_data(data, xaxis, yaxis, [],
+		 [figxmax, figxmin], [figymin, figymax], [])
+	elif len(imscale) == 4:
+		figxmax, figxmin, figymin, figymax = imscale
+		data, xaxis, yaxis = trim_data(data, xaxis, yaxis, [],
+		 [figxmax, figxmin], [figymin, figymax], [])
+		xmin, xmax = xaxis[[0,-1]]
+		ymin, ymax = yaxis[[0,-1]]
+		extent = (xmin-0.5*self.delx, xmax+0.5*self.delx, ymin-0.5*self.dely, ymax+0.5*self.dely)
+	else:
+		print ('ERROR\tchannelmaps: Input imscale is wrong.\
+		 Must be [xmin, xmax, ymin, ymax]')
+	xx, yy = np.meshgrid(xaxis, yaxis)
 
 
 	# !!!!! plot !!!!!
