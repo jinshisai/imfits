@@ -335,7 +335,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 	imscale=[], color=False, cbaron=False, cmap='Blues', vmin=None, vmax=None,
 	contour=True, clevels=[], ccolor='k',
-	nrow=5, ncol=5, velmin=None, velmax=None, nskip=1, cw=0.5, color_norm=None,
+	nrow=5, ncol=5, velmin=None, velmax=None, nskip=1, clw=0.5, color_norm=None,
 	xticks=[], yticks=[], relativecoords=True, vsys=None, csize=14, scalebar=np.empty(0),
 	cstar=True, prop_star=[], tickcolor='k', axiscolor='k', darkbg=False,
 	labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
@@ -590,7 +590,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 			imcolor = ax.imshow(Sv, cmap=cmap, origin='lower', extent=extent, norm=norm, rasterized=True)
 
 		if contour:
-			imcont  = ax.contour(Sv, colors=ccolor, origin='lower',extent=extent, levels=clevels, linewidths=cw)
+			imcont  = ax.contour(Sv, colors=ccolor, origin='lower',extent=extent, levels=clevels, linewidths=clw)
 
 		# set axes
 		ax.set_xlim(figxmin,figxmax)
