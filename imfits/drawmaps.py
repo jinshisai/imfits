@@ -12,8 +12,9 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	contour=True, clevels=None, ccolor='k', clw=1,
 	data=None, axis=0, xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
 	cstar=True, prop_star=[], color_norm=None, bcolor='k',figsize=(11.69,8.27),
-	tickcolor='k',axiscolor='k',labelcolor='k',coord_center=None, plot_beam = True,
-	interpolation=None, noreg=True, inmode=None, exact_coord=False):
+	coord_center=None, plot_beam = True,
+	interpolation=None, noreg=True, inmode=None, exact_coord=False,
+	tickcolor='k',axiscolor='k',labelcolor='k',darkbg=False):
 	'''
 	Draw a map from an self cube. You can overplot maps by giving ax where other maps are drawn.
 
@@ -109,6 +110,15 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	plt.rcParams['ytick.direction'] = 'in'   # directions of y ticks ('in'), ('out') or ('inout')
 	plt.rcParams['font.size']       = csize  # fontsize
 
+	if darkbg:
+		tickcolor= 'white'
+		axiscolor= 'white'
+		ccolor   = 'white'
+		bcolor   = 'white'
+		labelcolor='k'
+		transparent = False
+	else:
+		transparent=True
 
 	# setting output file name & format
 	outname = outname if outname else self.file.replace('.fits', '_intensitymap')
@@ -209,6 +219,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 		fig = plt.figure(figsize=figsize)
 		ax  = fig.add_subplot(111)
 
+	if darkbg: ax.set_facecolor('k')
 
 	# set colorscale
 	if vmax is None: vmax = np.nanmax(data)
@@ -238,7 +249,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 			cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
 			divider = make_axes_locatable(ax)
 			cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
-			cbar    = plt.colorbar(imcolor, cax=cax )#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
+			cbar    = plt.colorbar(imcolor, cax=cax)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
 			cbar.set_label(cbar_lbl)
 
 	# contour map
@@ -265,20 +276,19 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 		ax.set_yticklabels(yticks)
 
 	ax.set_aspect(1)
-	ax.tick_params(which='both', direction='in',bottom=True, top=True, left=True, right=True, labelsize=csize, color=tickcolor, labelcolor=labelcolor, pad=9)
+	ax.tick_params(which='both', direction='in',bottom=True, top=True,
+		left=True, right=True, labelsize=csize, color=tickcolor,
+		labelcolor=labelcolor, pad=9)
 
 	# plot beam size
-	if plot_beam:
-		bmin_plot, bmaj_plot = ax.transLimits.transform((bmin,bmaj)) - ax.transLimits.transform((0,0))   # data --> Axes coordinate
-		beam = patches.Ellipse(xy=(0.1, 0.1), width=bmin_plot, height=bmaj_plot, fc=bcolor, angle=bpa, transform=ax.transAxes)
-		ax.add_patch(beam)
+	if plot_beam: add_beam(ax, bmaj, bmin, bpa, bcolor)
 
 	# central star position
 	if cstar:
 		if len(prop_star) == 0:
 			ll = 0.1*np.abs(figxmax - figxmin)
 			lw = 1.
-			cl = 'k'
+			cl = 'white' if darkbg else 'k'
 			if relativecoords:
 				pos_cstar = np.array([0,0])
 			else:
@@ -329,20 +339,22 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	else:
 		print ('The parameter scalebar must have 8 elements but does not.')
 
-	plt.savefig(outname, transparent = True)
+	plt.savefig(outname, transparent = transparent)
 
 	return ax
 
 
 # Channel maps
-def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imscale=[], color=False, cbaron=False, cmap='Blues', vmin=None, vmax=None,
-	contour=True, clevels=np.array([0.15, 0.3, 0.45, 0.6, 0.75, 0.9]), ccolor='k',
-	nrow=5, ncol=5,velmin=None, velmax=None, nskip=1, cw=0.5, color_norm=None,
+def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
+	imscale=[], color=False, cbaron=False, cmap='Blues', vmin=None, vmax=None,
+	contour=True, clevels=[], ccolor='k',
+	nrow=5, ncol=5, velmin=None, velmax=None, nskip=1, cw=0.5, color_norm=None,
 	xticks=[], yticks=[], relativecoords=True, vsys=None, csize=14, scalebar=np.empty(0),
-	cstar=True, prop_star=[], tickcolor='k', axiscolor='k',
+	cstar=True, prop_star=[], tickcolor='k', axiscolor='k', darkbg=False,
 	labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
 	cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
-	cbaroptions=np.array(['right','5%','0%']), inmode='fits', vlabel_on=True):
+	cbaroptions=np.array(['right','5%','0%']), inmode='fits', vlabel_on=True,
+	plotall=True):
 	'''
 	Make channel maps from a fits file.
 
@@ -397,7 +409,6 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 	# modules
 	import matplotlib.figure as figure
 	import matplotlib as mpl
-	#from mpl_toolkits.mplot3d import axes3d
 	from astropy.coordinates import SkyCoord
 	import matplotlib.patches as patches
 	from mpl_toolkits.axes_grid1 import ImageGrid
@@ -412,6 +423,16 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 	plt.rcParams['ytick.direction'] = 'in'   # directions of y ticks ('in'), ('out') or ('inout')
 	plt.rcParams['font.size']       = csize  # fontsize
 
+	if darkbg:
+		tickcolor  = 'white'
+		axiscolor  = 'white'
+		txtcolor   = 'white'
+		bcolor     = 'white'
+		ccolor     = 'white'
+		labelcolor = 'k'
+
+	print('Draw channel maps...')
+
 
 	# Setting output file name & format
 	if (outformat == formatlist).any():
@@ -425,7 +446,6 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 		if data is None:
 			print ("inmode ='data' is selected. data must be provided.")
 			return
-
 		naxis = len(data.shape)
 	else:
 		data  = self.data
@@ -438,7 +458,8 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 		return
 
 	if self.beam is None:
-		plot_beam = False
+		pass
+		#plot_beam = False
 	else:
 		bmaj, bmin, bpa = self.beam
 
@@ -450,68 +471,76 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 
 	# Coordinates
 	if relativecoords:
-		xx = self.xx
-		yy = self.yy
+		#xx = self.xx*3600.
+		#yy = self.yy*3600.
 		cc = self.cc
+		xaxis = self.xaxis*3600.
+		yaxis = self.yaxis*3600.
 		xlabel = 'RA offset (arcsec)'
 		ylabel = 'DEC offset (arcsec)'
 	else:
 		print ('WARNING: Abusolute coordinates are still in development.')
 		xlabel = self.label_i[0]
 		ylabel = self.label_i[1]
-		xx = self.xx
-		yy = self.yy
+		#xx = self.xx_wcs
+		#yy = self.yy_wcs
 		cc = self.cc
+		xaxis = xx_wcs[self.nx//2,:] # not exactly though
+		yaxis = yy_wcs[:,self.ny//2]
 
-
-
-	# check data axes
-	if len(data.shape) == 3:
-		pass
-	elif len(data.shape) == 4:
-		data = data[0,:,:,:]
-	else:
-		print ('Error\tchannelmaps: Input fits size is not corrected.\
-		 It is allowed only to have 3 or 4 axes. Check the shape of the fits file.')
-		return
-
-	# unit: arcsec or deg
-	if arcsec:
-		xx     = xx*3600.
-		yy     = yy*3600.
-
-
+	# vaxis
 	# Get velocity axis
 	vaxis = self.vaxis
 	delv  = self.delv
-	nchan = self.naxis_i[2]
 
 	if delv < 0:
 		delv  = - delv
 		vaxis = vaxis[::-1]
 		data  = data[::-1,:,:]
 
-
-	# Figure extent
-	xmin   = xx[0,0]
-	xmax   = xx[-1,-1]
-	ymin   = yy[0,0]
-	ymax   = yy[-1,-1]
-	del_x  = xx[1,1] - xx[0,0]
-	del_y  = yy[1,1] - yy[0,0]
-	extent = (xmin-0.5*del_x, xmax+0.5*del_x, ymin-0.5*del_y, ymax+0.5*del_y)
-	#print (extent)
-
-
 	# Relative velocity
 	if vsys:
 		vaxis = vaxis - vsys
 
+	if velmin*velmax:
+		vlim = [velmin, velmax]
+	elif velmin:
+		vlim = [velmin, np.nanmax(vaxis)+1.]
+	elif velmax:
+		vlim = [np.nanmin(vaxis)-1., velmax]
+	else:
+		vlim = []
+
+	# trim data for plot
+	if len(imscale) == 0:
+		xmin, xmax = xaxis[[0,-1]]
+		ymin, ymax = yaxis[[0,-1]]
+		extent = (xmin-0.5*self.delx, xmax+0.5*self.delx, ymin-0.5*self.dely, ymax+0.5*self.dely)
+		figxmin, figxmax, figymin, figymax = extent
+		d_plt, x_plt, y_plt, v_plt = trim_data(data, xaxis, yaxis, vaxis,
+		 [figxmax, figxmin], [figymin, figymax], vlim)
+	elif len(imscale) == 4:
+		figxmax, figxmin, figymin, figymax = imscale
+		d_plt, x_plt, y_plt, v_plt = trim_data(data, xaxis, yaxis, vaxis,
+		 [figxmax, figxmin], [figymin, figymax], vlim)
+		extent = (x_plt[0]-0.5*self.delx, x_plt[-1]+0.5*self.delx,
+		 y_plt[0]-0.5*self.dely, y_plt[-1]+0.5*self.dely)
+	else:
+		print ('ERROR\tchannelmaps: Input imscale is wrong.\
+		 Must be [xmin, xmax, ymin, ymax]')
+		d_plt = data
+		v_plt = vaxis
+	nv_plt = len(v_plt)
+	xx, yy = np.meshgrid(x_plt, y_plt)
+
+	if nskip:
+		d_plt  = d_plt[::nskip,:,:]
+		v_plt  = v_plt[::nskip]
+		nv_plt = len(v_plt)
 
 	# Set colorscale
 	vmax = vmax if vmax is not None else np.nanmax(data)
 	vmin = vmin if vmin is not None else np.nanmin(data)
-
 
 	# color scale
 	if type(color_norm) == str:
@@ -544,39 +573,14 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 			label_mode='1')
 
 
-	# Setting parameters used to plot
-	if len(imscale) == 0:
-		figxmin, figxmax, figymin, figymax = extent
-	elif len(imscale) == 4:
-		figxmax, figxmin, figymin, figymax = imscale
-	else:
-		print ('ERROR\tchannelmaps: Input imscale is wrong. Must be [xmin, xmax, ymin, ymax]')
-
-
-	# data for plot
-	if velmax:
-		d_plt = data[vaxis <= velmax,:,:]
-		v_plt = vaxis[vaxis <= velmax]
-		nv_plt = len(v_plt)
-	else:
-		d_plt = data.copy()
-		v_plt = vaxis.copy()
-		nv_plt = len(v_plt)
-
-	if velmin:
-		d_plt  = d_plt[v_plt >= velmin,:,:]
-		v_plt  = v_plt[v_plt >= velmin]
-		nv_plt = len(v_plt)
-
-	if nskip:
-		d_plt  = d_plt[::nskip,:,:]
-		v_plt  = v_plt[::nskip]
-		nv_plt = len(v_plt)
+	if len(clevels) == 0:
+		clevels = np.array([0.2, 0.4, 0.6, 0.8])*np.nanmax(d_plt)
 
 	# Counter
-	i, j, gridi = [0,0,0]
-	gridimax    = nrow*ncol-1
-	ax    = None
+	gridimax = nrow*ncol-1
+	gridi    = 0
+	imap     = 0
+	ax       = None
 
 	# Loop
 	for ichan in range(nv_plt):
@@ -592,7 +596,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 
 		# Axis
 		ax = grid[gridi]
-		print ('Channel ', '%s'%ichan, ', velocity: ', '%4.2f'%v_i, ' km/s')
+		#print ('Channel ', '%s'%ichan, ', velocity: ', '%4.2f'%v_i, ' km/s')
 
 		# showing in color scale
 		if color:
@@ -632,7 +636,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 			if len(prop_star) == 0:
 				ll = 0.1*np.abs(figxmax - figxmin)
 				lw = 1.
-				cl = 'k'
+				cl = 'white' if darkbg else 'k'
 				pos_cstar = np.array([0,0]) if relativecoords else cc
 			elif len(prop_star) == 3:
 				ll,lw, cl = prop_star
@@ -649,6 +653,37 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 
 		gridi += 1
 
+		# break or continue?
+		if gridi > gridimax:
+			if plotall:
+				# Plot beam
+				add_beam(grid[(nrow-1)*ncol], bmaj, bmin, bpa, bcolor, loc='bottom left')
+				# scalebar
+				if len(scalebar) != 0:
+					add_scalebar(grid[(nrow-1)*ncol], scalebar)
+				# colorbar
+				if color and cbaron and ax:
+					cbar = add_colorbar_togrid(imcolor, grid, cbarlabel,
+						tickcolor, axiscolor, labelcolor)
+				#label
+				grid[(nrow-1)*ncol].set_xlabel(xlabel)
+				grid[(nrow-1)*ncol].set_ylabel(ylabel)
+				grid[(nrow-1)*ncol].xaxis.label.set_color(labelcolor)
+				grid[(nrow-1)*ncol].yaxis.label.set_color(labelcolor)
+				# save
+				plt.savefig(outfile.replace('.'+outformat, '_%02i.'%imap + outformat),
+					transparent = True)
+				# reset
+				fig = plt.figure(figsize=figsize)
+				grid = ImageGrid(fig, rect=111, nrows_ncols=(nrow,ncol),
+					axes_pad=0,share_all=True,cbar_mode=cbar_mode,
+					cbar_location=cbar_loc,cbar_size=cbar_wd,cbar_pad=cbar_pad,
+					label_mode='1')
+				gridi = 0
+				ax    = None
+				imap  += 1
+			else:
+				break
 
 	# On the bottom-left corner pannel
 	# Labels
@@ -658,48 +693,14 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 	grid[(nrow-1)*ncol].yaxis.label.set_color(labelcolor)
 
 	# Plot beam
-	bmin_plot, bmaj_plot = grid[(nrow-1)*ncol].transLimits.transform((0,bmaj)) - grid[(nrow-1)*ncol].transLimits.transform((bmin,0))   # data --> Axes coordinate
-	beam = patches.Ellipse(xy=(0.1, 0.1), width=bmin_plot, height=bmaj_plot, fc=bcolor, angle=bpa, transform=grid[(nrow-1)*ncol].transAxes)
-	grid[(nrow-1)*ncol].add_patch(beam)
-
+	add_beam(grid[(nrow-1)*ncol], bmaj, bmin, bpa, bcolor, loc='bottom left')
 	# Scale bar
-	if len(scalebar) == 0:
-		pass
-	elif len(scalebar) == 8:
-		barx, bary, barlength, textx, texty, text, barcolor, barcsize = scalebar
-
-		barx      = float(barx)
-		bary      = float(bary)
-		barlength = float(barlength)
-		textx     = float(textx)
-		texty     = float(texty)
-
-		if sbar_vertical:
-			grid[(nrow-1)*ncol].vlines(barx, bary - barlength*0.5,bary + barlength*0.5, color=barcolor, lw=2, zorder=10)
-		else:
-			grid[(nrow-1)*ncol].hlines(bary, barx - barlength*0.5,barx + barlength*0.5, color=barcolor, lw=2, zorder=10)
-
-		grid[(nrow-1)*ncol].text(textx,texty,text,color=barcolor,fontsize=barcsize,horizontalalignment='center',verticalalignment='center')
-	else:
-		print ('scalebar must consist of 8 elements. Check scalebar.')
-
-
-
+	if len(scalebar) != 0:
+		add_scalebar(grid[(nrow-1)*ncol], scalebar)
+	# colorbar
 	if color and cbaron and ax:
-		# With cbar_mode="single", cax attribute of all axes are identical.
-		cax = grid.cbar_axes[0]
-		cbar = plt.colorbar(imcolor, ticks=cbarticks, cax=cax)
-		#cbar = cax.colorbar(imcolor,ticks=cbarticks)
-		cax.toggle_label(True)
-		cbar.ax.yaxis.set_tick_params(color=tickcolor) # tick color
-		cbar.ax.spines["bottom"].set_color(axiscolor)  # axes color
-		cbar.ax.spines["top"].set_color(axiscolor)
-		cbar.ax.spines["left"].set_color(axiscolor)
-		cbar.ax.spines["right"].set_color(axiscolor)
-
-		if cbarlabel:
-			cbar.ax.set_ylabel(cbarlabel,color=labelcolor) # label
-
+		cbar = add_colorbar_togrid(imcolor, grid, cbarlabel,
+			tickcolor, axiscolor, labelcolor)
 
 	if gridi != gridimax+1 and gridi != 0:
 		while gridi != gridimax+1:
@@ -712,7 +713,11 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf', imsca
 			ax.axis('off')
 			gridi = gridi+1
 
-	plt.savefig(outfile, transparent = True)
+	if plotall:
+		plt.savefig(outfile.replace('.'+outformat, '_%02i.'%imap + outformat),
+			transparent = True)
+	else:
+		plt.savefig(outfile, transparent = True)
 
 	return grid
 
@@ -982,3 +987,131 @@ def generate_grid(nrow, ncol, figsize=(11.69, 8.27),
 		label_mode=label_mode)
 
 	return grid
+
+
+def trim_data(data, x, y, v,
+	xlim: list = [], ylim: list = [], vlim: list = []):
+	'''
+	Clip a cube image with given axis ranges.
+
+	Parameters
+	----------
+		data (array): Data
+		x (array): x axis
+		y (array): y axis
+		v (array): v axis
+		xlim (list): x range. Must be given as [xmin, xmax].
+		ylim (list): y range. Must be given as [ymin, ymax].
+		vlim (list): v range. Must be given as [vmin, vmax].
+	'''
+	data = np.squeeze(data)
+	if len(data.shape) == 2:
+		yimin, yimax = index_between(y, ylim, mode='edge')[0]
+		ximin, ximax = index_between(x, xlim, mode='edge')[0]
+		data = data[yimin:yimax+1, ximin:ximax+1]
+		y    = y[index_between(y, ylim)]
+		x    = x[index_between(x, xlim)]
+		return data, x, y
+	elif len(data.shape) == 3:
+		vimin, vimax = index_between(v, vlim, mode='edge')[0]
+		yimin, yimax = index_between(y, ylim, mode='edge')[0]
+		ximin, ximax = index_between(x, xlim, mode='edge')[0]
+		data = data[vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
+		v    = v[index_between(v, vlim)]
+		y    = y[index_between(y, ylim)]
+		x    = x[index_between(x, xlim)]
+		return data, x, y, v
+	else:
+		print('trim_data: Invalid data shape.')
+		return -1
+
+
+def index_between(t, tlim, mode='all'):
+	if not (len(tlim) == 2):
+		if mode=='all':
+			return np.full(np.shape(t), True)
+		elif mode == 'edge':
+			if len(t.shape) == 1:
+				return [0, len(t)-1]
+			else:
+				return [[0, t.shape[i]] for i in range(len(t.shape))]
+		else:
+			print('index_between: mode parameter is not right.')
+			return np.full(np.shape(t), True)
+	else:
+		if mode=='all':
+			return (tlim[0] <= t) * (t <= tlim[1])
+		elif mode == 'edge':
+			nonzero = np.nonzero((tlim[0] <= t) * (t <= tlim[1]))
+			return tuple([[np.min(i), np.max(i)] for i in nonzero])
+		else:
+			print('index_between: mode parameter is not right.')
+			return (tlim[0] <= t) * (t <= tlim[1])
+
+
+def add_beam(ax, bmaj: float, bmin: float, bpa: float,
+ bcolor: str = 'k', loc: str = 'bottom left'):
+	import matplotlib.patches as patches
+
+	coords = {'bottom left': (0.1, 0.1),
+	'bottom right': (0.9, 0.1),
+	'top left': (0.1, 0.9),
+	'top right': (0.1, 0.1),
+	}
+	if loc in coords.keys():
+		xy = coords[loc]
+	else:
+		print('CAUTION\tplot_beam: loc keyword is not correct.')
+		return -1
+	# plot
+	bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
+	beam = patches.Ellipse(xy=xy,
+		width=bmin_plot, height=bmaj_plot, fc=bcolor,
+		angle=bpa, transform=ax.transAxes)
+	ax.add_patch(beam)
+
+def add_colorbar_togrid(im, grid, cbarlabel: str='',
+	tickcolor: str = 'k', axiscolor: str = 'k', labelcolor: str = 'k'):
+	cax  = grid.cbar_axes[0]
+	cbar = plt.colorbar(im, cax=cax) # ticks=cbarticks
+	cax.toggle_label(True)
+	cbar.ax.yaxis.set_tick_params(color=tickcolor) # tick color
+	cbar.ax.spines["bottom"].set_color(axiscolor)  # axes color
+	cbar.ax.spines["top"].set_color(axiscolor)
+	cbar.ax.spines["left"].set_color(axiscolor)
+	cbar.ax.spines["right"].set_color(axiscolor)
+
+	if cbarlabel:
+		cbar.ax.set_ylabel(cbarlabel,color=labelcolor) # label
+	return cbar
+
+def add_colorbar_toaxis(im, ax, cbaroptions: list):
+	cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+	divider = make_axes_locatable(ax)
+	cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
+	cbar    = plt.colorbar(imcolor, cax=cax)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
+	cbar.set_label(cbar_lbl)
+	return cax, cbar
+
+
+
+def add_scalebar(ax, scalebar: list, orientation='horizontal'):
+	if len(scalebar) != 8:
+		print ('scalebar must consist of 8 elements. Check scalebar.')
+
+	# read
+	barx, bary, barlength, textx, texty, text, barcolor, barcsize = scalebar
+
+	# to float
+	barx      = float(barx)
+	bary      = float(bary)
+	barlength = float(barlength)
+	textx     = float(textx)
+	texty     = float(texty)
+
+	if orientation == 'vertical':
+		ax.vlines(barx, bary - barlength*0.5,bary + barlength*0.5, color=barcolor, lw=2, zorder=10)
+	else:
+		ax.hlines(bary, barx - barlength*0.5,barx + barlength*0.5, color=barcolor, lw=2, zorder=10)
+
+	ax.text(textx,texty,text,color=barcolor,fontsize=barcsize,horizontalalignment='center',verticalalignment='center')
