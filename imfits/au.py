@@ -22,61 +22,48 @@ pcTOcm = 3.09e18        # pc --> cm
 
 
 # Handle images
-def boxtrim(self, xlim, ylim, coord_center=None):
+### function
+def imrotate(image, angle=0):
 	'''
-	Trim a image with a given box.
+	Rotate the input image
 
-	Parameters
-	----------
-	 - xlim, ylim: x and y ranges in arcsec.
-	 - coord_center: Coordinate of the box center.
-	                 In the format of '00h00m00.00s 00d00m00.00s' or 'hh:mm:ss.ss dd:mm:ss.ss'.
+	Args:
+		image: input image in 2d array
+		angle (float): Rotational Angle. Anti-clockwise direction will be positive (same to the Position Angle). in deg.
 	'''
+	import scipy.ndimage
 
-	# shift center
-	if coord_center:
-		#print ('Shift the map center.')
-		self.shift_coord_center(coord_center)
+	# check whether the array includes nan
+	# nan --> 0 for interpolation
+	if np.isnan(image.data).any() == False:
+		pass
+	elif np.isnan(image.data).any() == True:
+		print ('CAUTION\timrotate: Input image array includes nan. Replace nan with 0 for interpolation when rotate image.')
+		image.data[np.isnan(image.data)] = 0.
 
-	# get axes
-	xaxis, yaxis, vaxis, saxis = self.axes
-	xaxis *=3600. # deg --> arcsec
-	yaxis *=3600. # deg --> arcsec
-
-	# get pixel range
-	xpixmin, xpixmax = np.where((xaxis >= xlim[0]) & (xaxis <= xlim[1]) )[0][0], np.where((xaxis >= xlim[0]) & (xaxis <= xlim[1]) )[0][-1]
-	ypixmin, ypixmax = np.where((yaxis >= ylim[0]) & (yaxis <= ylim[1]) )[0][0], np.where((yaxis >= ylim[0]) & (yaxis <= ylim[1]) )[0][-1]
-
-	rex, rey = xaxis[xpixmin:xpixmax+1]/3600, yaxis[ypixmin:ypixmax+1]/3600 # deg
-	renx = xpixmax - xpixmin + 1
-	reny = ypixmax - ypixmin + 1
-
-	# trimming
-	if self.naxis == 2:
-		self.data = self.data[ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-		self.naxis_i = renx, reny
-	elif self.naxis == 3:
-		self.data = self.data[:,ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-		self.naxis_i = renx, reny, self.naxis_i[2]
-	elif self.naxis == 4:
-		self.data = self.data[:,:,ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-		self.naxis_i = renx, reny, self.naxis_i[2], self.naxis_i[3]
+	# rotate image
+	nx = image.nx
+	ny = image.ny
+	if image.naxis == 2:
+		newimage = scipy.ndimage.rotate(image.data, -angle, reshape=False)
+	elif image.naxis == 3:
+		newimage = image.data.copy()
+		for i in range(image.nv):
+			newimage[i,:,:] = scipy.ndimage.rotate(image.data[i,:,:], -angle, reshape=False)
+	elif image.naxis == 4:
+		newimage = image.data.copy()
+		for i in range(image.nv):
+			newimage[0,i,:,:] = scipy.ndimage.rotate(image.data[0,i,:,:], -angle, reshape=False)
 	else:
-		print ('ERROR\tboxtrim: Input image must have 2--4 axes.')
-		return
+		print('Naxis must be <= 4.')
+		return -1
 
-	# update axes
-	self.nx = renx
-	self.ny = reny
-	self.xaxis = rex
-	self.yaxis = rey
-	self.axes  = rex, rey, vaxis, saxis
+	# resampling
+	#mx = newimage.shape[0]
+	#my = newimage.shape[1]
+	#outimage = newimage[my//2 - ny//2:my//2 - ny//2 + ny, mx//2 - nx//2:mx//2 - nx//2 + nx]
 
-	self.xx = self.xx[ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-	self.xx_wcs = self.xx_wcs[ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-	self.yy = self.yy[ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-	self.yy_wcs = self.yy_wcs[ypixmin:ypixmax+1,xpixmin:xpixmax+1]
-
+	return newimage
 
 
 # functions

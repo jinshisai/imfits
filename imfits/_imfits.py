@@ -345,6 +345,9 @@ class Imfits():
 		'''
 		Get sky coordinates.
 		'''
+		from astropy.coordinates import SkyCoord
+		import astropy.units as u
+
 		# Get wcs
 		wcs = WCS(self.file)
 		self.wcs = wcs
@@ -372,13 +375,16 @@ class Imfits():
 
 		# relative coordinates
 		# ra
-		xx = xx - ref_x
-		xx = xx*np.cos(np.radians(yy))
+		#xx = xx - ref_x
+		#xx = xx*np.cos(np.radians(yy))
 		# dec
-		yy = yy - ref_y
+		#yy = yy - ref_y
+		cc   = SkyCoord(ref_x, ref_y, frame='icrs', unit=(u.deg, u.deg))
+		grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame='icrs', unit=(u.deg,u.deg))
+		xx, yy = cc.spherical_offsets_to(grid)
 
-		self.xx = xx
-		self.yy = yy
+		self.xx = xx.deg
+		self.yy = yy.deg
 		#self.xaxis = xx[ny//2,:]
 		#self.yaxis = yy[:,nx//2]
 		self.cc = np.array([ref_x, ref_y]) # coordinate center
