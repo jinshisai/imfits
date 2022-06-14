@@ -396,27 +396,41 @@ class Imfits():
 		'''
 		# module
 		from astropy.coordinates import SkyCoord
+		import astropy.units as u
 
 		# ra, dec
+		cc = SkyCoord(self.cc[0], self.cc[1], frame='icrs', unit=(u.deg, u.deg))
 		c_ra, c_dec = coord_center.split(' ')
-		cc          = SkyCoord(c_ra, c_dec, frame='icrs')
-		cra_deg     = cc.ra.degree                   # in degree
-		cdec_deg    = cc.dec.degree                  # in degree
+		cc_new      = SkyCoord(c_ra, c_dec, frame='icrs', unit=(u.hour, u.deg))
+		cra_deg     = cc_new.ra.degree               # in degree
+		cdec_deg    = cc_new.dec.degree              # in degree
 		new_cent    = np.array([cra_deg, cdec_deg])  # absolute coordinate of the new image center
+		# offset of the center
+		#x_offset, y_offset = cc.spherical_offsets_to(cc_new)
 
 		# current coordinates
-		alpha = self.xx_wcs
-		delta = self.yy_wcs
-
+		#alpha = self.xx_wcs
+		#delta = self.yy_wcs
 
 		# shift of the center
-		alpha = (alpha - cra_deg)*np.cos(np.radians(delta))
-		delta = delta - cdec_deg
+		# approximately
+		#alpha = (alpha - cra_deg)*np.cos(np.radians(delta))
+		#delta = delta - cdec_deg
+		# more exactly
+		grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame='icrs', unit=(u.deg,u.deg))
+		grid_new = cc_new.spherical_offsets_to(grid)
+		xx_new, yy_new = grid_new
+		xcent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
+		ycent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
 
 		# update
-		self.xx = alpha
-		self.yy = delta
+		self.xx = xx_new.deg #alpha
+		self.yy = yy_new.deg #delta
 		self.cc = new_cent
+		self.xaxis = xx_new[ycent_indx, :].deg
+		self.yaxis = yy_new[:, xcent_indx].deg
+		#self.xaxis = xx_new[self.nx//2,:].deg # or self.xaxis -= x_offset.deg
+		#self.yaxis = yy_new[:, self.ny//2].deg # or -= y_offset.deg
 
 
 	def convert_units(self, conversion='IvtoTb'):
@@ -635,7 +649,7 @@ class Imfits():
 		----------
 			xlim (list): x range. Must be given as [xmin, xmax] in arcsec.
 			ylim (list): y range. Must be given as [ymin, ymax] in arcsec.
-			vlim (list): v range. Must be given as [vmin, vmax] in arcsec.
+			vlim (list): v range. Must be given as [vmin, vmax] in km s^-1.
 		'''
 		def index_between(t, tlim, mode='all'):
 			if not (len(tlim) == 2):
