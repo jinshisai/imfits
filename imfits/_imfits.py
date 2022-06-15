@@ -691,6 +691,8 @@ class Imfits():
 			self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
 			self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
 			self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+			self.nx = len(self.xaxis)
+			self.ny = len(self.yaxis)
 		elif self.naxis == 3:
 			vimin, vimax = index_between(self.vaxis, vlim, mode='edge')[0]
 			yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
@@ -703,6 +705,9 @@ class Imfits():
 			self.vaxis   = self.vaxis[index_between(self.vaxis, vlim)]
 			self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
 			self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+			self.nx = len(self.xaxis)
+			self.ny = len(self.yaxis)
+			self.nv = len(self.vaxis)
 		elif self.naxis == 4:
 			simin, simax = index_between(self.saxis, slim, mode='edge')[0]
 			vimin, vimax = index_between(self.vaxis, vlim, mode='edge')[0]
@@ -717,6 +722,10 @@ class Imfits():
 			self.vaxis   = self.vaxis[index_between(self.vaxis, vlim)]
 			self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
 			self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+			self.nx = len(self.xaxis)
+			self.ny = len(self.yaxis)
+			self.nv = len(self.vaxis)
+			self.ns = len(self.saxis)
 		else:
 			print('trim_data: Invalid data shape.')
 			return -1
