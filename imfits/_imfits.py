@@ -663,9 +663,9 @@ class Imfits():
 					return np.full(np.shape(t), True)
 				elif mode == 'edge':
 					if len(t.shape) == 1:
-						return [0, len(t)-1]
+						return tuple([0, len(t)-1])
 					else:
-						return [[0, t.shape[i]] for i in range(len(t.shape))]
+						return tuple([[0, t.shape[i]] for i in range(len(t.shape))])
 				else:
 					print('index_between: mode parameter is not right.')
 					return np.full(np.shape(t), True)
