@@ -341,7 +341,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 	labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
 	cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
 	cbaroptions=np.array(['right','5%','0%']), inmode='fits', vlabel_on=True,
-	plotall=True):
+	plotall=False):
 	'''
 	Make channel maps from a fits file.
 
