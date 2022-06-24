@@ -477,7 +477,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 
 	# vaxis
 	# Get velocity axis
-	vaxis = self.vaxis
+	vaxis = self.vaxis.copy()
 	delv  = self.delv
 
 	if delv < 0:
@@ -489,7 +489,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 	if vsys:
 		vaxis = vaxis - vsys
 
-	if velmin*velmax:
+	if (velmin is not None) & (velmax is not None):
 		vlim = [velmin, velmax]
 	elif velmin:
 		vlim = [velmin, np.nanmax(vaxis)+1.]
@@ -1019,7 +1019,7 @@ def index_between(t, tlim, mode='all'):
 			return np.full(np.shape(t), True)
 		elif mode == 'edge':
 			if len(t.shape) == 1:
-				return [0, len(t)-1]
+				return ([0, len(t)-1], )
 			else:
 				return [[0, t.shape[i]] for i in range(len(t.shape))]
 		else:
