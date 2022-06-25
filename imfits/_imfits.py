@@ -322,8 +322,9 @@ class Imfits():
 			#del_i[1] = -del_i[1]*clight/restfreq  # delf --> delv [cm/s]
 			#del_i[1] = del_i[1]*1.e-5             # cm/s --> km/s
 
+		# if stokes axis
 		axes_out = np.array([xaxis, vaxis], dtype=object)
-		if naxis >= 2:
+		if naxis >= 3:
 			saxis = axes[2]
 			saxis = saxis[:naxis_i[2]]
 			axes_out = np.array([xaxis, vaxis, saxis], dtype=object)
