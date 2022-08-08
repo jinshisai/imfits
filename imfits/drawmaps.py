@@ -215,6 +215,12 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 	if type(color_norm) == str:
 		if color_norm == 'log':
 			norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
+		elif color_norm.replace(' ','').lower() == 'asinhstretch':
+			def _forward(x, a=0.1):
+				return np.arcsinh(x/a)/np.arcsinh(1./a)
+			def _inverse(x, a=0.1):
+				return a*np.sinh(x*(np.arcsinh(1/a)))
+			norm = mpl.colors.FuncNorm((_forward, _inverse), vmin=vmin, vmax=vmax)
 	elif type(color_norm) == tuple:
 		if hasattr(color_norm[0], '__call__'):
 			norm = mpl.colors.FuncNorm(color_norm, vmin=vmin, vmax=vmax)
@@ -1035,9 +1041,33 @@ def index_between(t, tlim, mode='all'):
 			print('index_between: mode parameter is not right.')
 			return (tlim[0] <= t) * (t <= tlim[1])
 
+def add_cross(ax, loc=(0,0), length=None, width=1., color='k'):
+	'''
+	Add a cross in a map to indicate a location of, for example, a stellar object.
+
+	Args:
+	 - ax: axis
+	 - loc (tuple or str): coordinates for plot.
+	 - length: line length for the cross
+	 - width: line width
+	 - color: line color
+	'''
+	if length is None:
+		length = np.abs(ax.get_xlim()[1] - ax.get_xlim()[0])*0.1
+
+	if type(loc) == tuple or type(loc) == list:
+		loc_x, loc_y = loc
+	else:
+		print('ERROR\tadd_cross: loc must be tuple or list.')
+		return 0
+
+	ax.hlines(loc_y, loc_x-length*0.5, loc_x+length*0.5, lw=width, color=color, zorder=11)
+	ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=11)
+
+
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
- bcolor: str = 'k', loc: str = 'bottom left'):
+ bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.):
 	import matplotlib.patches as patches
 
 	coords = {'bottom left': (0.1, 0.1),
@@ -1054,7 +1084,7 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
 	bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
 	beam = patches.Ellipse(xy=xy,
 		width=bmin_plot, height=bmaj_plot, fc=bcolor,
-		angle=bpa, transform=ax.transAxes)
+		angle=bpa, transform=ax.transAxes, alpha=alpha)
 	ax.add_patch(beam)
 
 def add_colorbar_togrid(im, grid, cbarlabel: str='',
@@ -1079,8 +1109,6 @@ def add_colorbar_toaxis(im, ax, cbaroptions: list):
 	cbar    = plt.colorbar(imcolor, cax=cax)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
 	cbar.set_label(cbar_lbl)
 	return cax, cbar
-
-
 
 def add_scalebar(ax, scalebar: list, orientation='horizontal'):
 	if len(scalebar) != 8:

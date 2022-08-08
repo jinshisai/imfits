@@ -742,3 +742,33 @@ class Imfits():
             extent = tuple(np.array(list(extent))*3600.) # deg --> arcsec
         self.extent = extent
         return extent
+
+
+    def get_1dresolution(self, pa):
+        '''
+        Calculate beam size along a certain direction given by a position angle.
+
+        Parameters
+        ----------
+         - self: Imfits object
+         - pa: position angle of a direction in which you want to calculate a resolution.
+
+        Equations
+        ---------
+         Describe a beam with an ellipse:
+          (x/bmaj)**2 + (y/bmin)**2 = 1
+          taking the beam major axis to be x-axis.
+
+         Line toward an angle theta measured from x-axis to y-axis:
+          y = x*tan(theta)
+
+         The crossing point is the resolution in a one-dimensional slice.
+          --> Solve these equations to get r, which is the resolution.
+        '''
+        bmaj, bmin, bpa = self.beam
+        del_pa = pa - bpa          # angle from the major axis of the beam (i.e., x-axis) to the 1D-slice direction.
+        del_pa = del_pa*np.pi/180. # radian
+        term_sin = (np.sin(del_pa)/bmin)**2.
+        term_cos = (np.cos(del_pa)/bmaj)**2.
+        res_off  = np.sqrt(1./(term_sin + term_cos))
+        return res_off
