@@ -1041,7 +1041,8 @@ def index_between(t, tlim, mode='all'):
 			print('index_between: mode parameter is not right.')
 			return (tlim[0] <= t) * (t <= tlim[1])
 
-def add_cross(ax, loc=(0,0), length=None, width=1., color='k'):
+def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
+	zorder=10.):
 	'''
 	Add a cross in a map to indicate a location of, for example, a stellar object.
 
@@ -1061,13 +1062,14 @@ def add_cross(ax, loc=(0,0), length=None, width=1., color='k'):
 		print('ERROR\tadd_cross: loc must be tuple or list.')
 		return 0
 
-	ax.hlines(loc_y, loc_x-length*0.5, loc_x+length*0.5, lw=width, color=color, zorder=11)
-	ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=11)
+	ax.hlines(loc_y, loc_x-length*0.5, loc_x+length*0.5, lw=width, color=color, zorder=zorder)
+	ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=zorder)
 
 
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
- bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.):
+ bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.,
+ zorder: float = 10., ):
 	import matplotlib.patches as patches
 
 	coords = {'bottom left': (0.1, 0.1),
@@ -1084,7 +1086,7 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
 	bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
 	beam = patches.Ellipse(xy=xy,
 		width=bmin_plot, height=bmaj_plot, fc=bcolor,
-		angle=bpa, transform=ax.transAxes, alpha=alpha)
+		angle=bpa, transform=ax.transAxes, alpha=alpha, zorder=zorder)
 	ax.add_patch(beam)
 
 def add_colorbar_togrid(im, grid, cbarlabel: str='',
