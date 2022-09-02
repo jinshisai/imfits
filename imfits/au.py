@@ -22,25 +22,68 @@ pcTOcm = 3.09e18        # pc --> cm
 
 
 # Functions
-def get_1Dprofile(image, pa):
+def get_1Dprofile(image, pa, average_side=False):
     '''
     Get one dimensional profile in a orientation at a position angule.
 
     Args:
         image (Imfits object): fits image
         pa (float): Position angle for the 1D cut.
+        average_sides (bool): Take an average of profiles on \
+                              positive and negative sides, or not.
     '''
     im_rot = imrotate(image, -pa)
 
     if len(im_rot.shape) == 2:
-        return image.yaxis.copy(), im_rot[:,image.nx//2]
+        x, y = image.yaxis.copy(), im_rot[:,image.nx//2]
     elif len(im_rot.shape) == 3:
-        return image.yaxis.copy(), im_rot[0,:,image.nx//2]
+        x, y = image.yaxis.copy(), im_rot[0,:,image.nx//2]
     elif len(im_rot.shape) == 4:
-        return image.yaxis.copy(), np.squeeze(im_rot[0,:,:,image.nx//2])
+        x, y = image.yaxis.copy(), np.squeeze(im_rot[0,:,:,image.nx//2])
     else:
-        print('Naxis must be <= 4.')
-        return -1
+        print('ERROR\tget_1Dprofile: Naxis of the input fits file must be <= 4.')
+        return 0
+
+    # take average
+    # x-axis must be symmetric with respect to zero
+    if average_side:
+        # get x-axis
+        x_n = -x[x < 0.][::-1]
+        x_p = x[x > 0.]
+        n_xn = len(x_n)
+        n_xp = len(x_p)
+        x_mn = x_p if n_xn >= n_xp else x_n
+
+        if len(im_rot.shape) == 2:
+            y_n = y[x < 0.][::-1]
+            y_p = y[x > 0.]
+
+            if n_xn == n_xp:
+                pass
+            elif n_xn > n_xp:
+                y_n  = y_n[:-1] # cut off excess
+            else:
+                y_p  = y_p[:-1] # cut off excess
+
+            y_mn = 0.5*(y_n + y_p)
+        else:
+            nindx = np.nonzero(x < 0.)[0]
+            y_n = y[:, nindx[0]:nindx[-1]+1][::-1]
+            pindx = np.nonzero(x > 0.)[0]
+            y_p = y[:, pindx[0]:pindx[-1]+1]
+            if n_xn == n_xp:
+                pass
+            elif n_xn > n_xp:
+                y_n  = y_n[:, :-1] # cut off excess
+            else:
+                y_p  = y_p[:, :-1] # cut off excess
+            y_mn = np.array([
+                0.5*(y_n[i,:] + y_p[i,:])
+                for i in range(y.shape[0])])
+        return x_mn, y_mn
+    else:
+        return x, y
+
 
 def imrotate(image, angle=0):
     '''
@@ -312,3 +355,76 @@ def rotate2d(x, y, angle, deg=True, coords=False):
     yrot = x*sin + y*cos
 
     return xrot, yrot
+
+
+def regrid_image(self, 
+    xlim: list = [],
+    ylim: list = [],
+    vlim: list = [],
+    fits_tmp = None, check_fig = False, 
+    center_mode='onpixel'):
+    '''
+
+    center_mode (str): Location of the coordinate center. onpixel or between.
+    '''
+    # regrid fits image using spline trapolation.
+    from scipy.interpolate import griddata
+
+    xlim = np.array(xlim)/3600.
+    ylim = np.array(ylim)/3600.
+
+    # Get coordinates
+    if fits_tmp:
+        im_tmp = Imfits(fits_tmp)
+        delx = im_tmp.delx
+        dely = im_tmp.dely
+        delv = im_tmp.delv
+    else:
+        delx = self.delx
+        dely = self.dely
+        delv = self.delv
+
+    if center_mode == 'onpixel':
+        xc = np.concatenate([np.arange(0., xlim[1]-delx, -delx)[::-1], 
+            np.arange(delx, xlim[0]+delx, delx)])
+        yc = np.concatenate([np.arange(-dely, ylim[0]-dely, -dely)[::-1],
+            np.arange(0., ylim[1]+dely, dely)])
+    elif center_mode == 'between':
+        xc = np.concatenate([np.arange(-delx*0.5, xlim[1]-delx, -delx)[::-1], 
+            np.arange(delx*0.5, xlim[0]+delx, delx)])
+        yc = np.concatenate([np.arange(-dely*0.5, ylim[0]-dely, -dely)[::-1],
+            np.arange(dely*0.5, ylim[1]+dely, dely)])
+    else:
+        print('ERROR\tregrid_image: center_mode must be onpixel or between.')
+        return 0
+
+    # grid
+    #vc             = np.linspace(vmin,vmax,nchan)
+    xx_new, yy_new = np.meshgrid(xc, yc)
+
+    # grid
+    xc2     = np.linspace(xmin2,xmax2,nx2)
+    yc2     = np.linspace(ymin2,ymax2,ny2)
+    vc2     = np.linspace(vmin2,vmax2,nchan2)
+    xx_reg, yy_reg = np.meshgrid(xc2, yc2)
+    #xx_reg, yy_reg, vv_reg = np.meshgrid(xc2, yc2, vc2)
+
+    # 2D --> 1D
+    xinp    = self.xx.reshape(self.xx.size)
+    yinp    = self.yy.reshape(self.yy.size)
+
+    # regrid
+    print ('regriding...')
+    if self.naxis == 2:
+        data_reg = griddata((xinp, yinp), self.data.reshape(self.data.size), (xx_new, yy_new), 
+            method='cubic',rescale=True)
+    elif self.naxis == 3:
+        channel_range = tqdm(range(self.nv))
+        data_reg = np.array([ griddata((xinp, yinp), data[i,:,:].reshape(dataxysize), (xx_tmp, yy_tmp), 
+            method='cubic',rescale=True) for i in channel_range ])
+    elif self.naxis == 4:
+        channel_range = tqdm(range(self.nv))
+        data_reg = np.array([[ griddata((xinp, yinp), data[j,i,:,:].reshape(dataxysize), (xx_tmp, yy_tmp), 
+            method='cubic',rescale=True) for i in channel_range ] for j in range(self.ns)])
+
+    return xc, yc, data_reg

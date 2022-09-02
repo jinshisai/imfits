@@ -1068,6 +1068,21 @@ def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
     ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=zorder)
 
 
+def add_line(ax, length=None, pa=0., cent=(0,0), width=1., color='k',
+    ls='-', alpha=1., zorder=10.):
+    if length is None:
+        length = np.sqrt(
+            (ax.get_xlim()[1] - ax.get_xlim()[0])**2 + (ax.get_ylim()[1] - ax.get_ylim()[0])**2
+            )
+    x0, y0, x1, y1 = length*0.5 * np.array([
+        np.sin(np.radians(pa)), np.cos(np.radians(pa)),
+        np.sin(np.radians(pa+180.)), np.cos(np.radians(pa+180.))
+        ])
+    ax.plot([x0 - cent[0], x1  - cent[0]],
+        [y0 - cent[1], y1 - cent[1]], color=color, lw=width, 
+        ls=ls, alpha=alpha, zorder=zorder)
+
+
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
  bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.,

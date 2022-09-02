@@ -391,7 +391,8 @@ class Imfits():
         self.cc = np.array([ref_x, ref_y]) # coordinate center
 
 
-    def shift_coord_center(self, coord_center):
+    def shift_coord_center(self, coord_center, 
+        regrid=False):
         '''
         Shift the coordinate center.
 
@@ -400,6 +401,7 @@ class Imfits():
                The shape must be '00h00m00.00s 00d00m00.00s', or
                'hh:mm:ss.ss dd:mm:ss.ss'. RA and DEC must be separated
                by space.
+            regrid (bool): Interpolate data to make the new grid fit to the old grid
         '''
         # module
         from astropy.coordinates import SkyCoord
@@ -425,19 +427,43 @@ class Imfits():
         #delta = delta - cdec_deg
         # more exactly
         grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame='icrs', unit=(u.deg,u.deg))
+        # in offset
         grid_new = cc_new.spherical_offsets_to(grid)
         xx_new, yy_new = grid_new
-        xcent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
-        ycent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
 
-        # update
-        self.xx = xx_new.deg #alpha
-        self.yy = yy_new.deg #delta
-        self.cc = new_cent
-        self.xaxis = xx_new[ycent_indx, :].deg
-        self.yaxis = yy_new[:, xcent_indx].deg
-        #self.xaxis = xx_new[self.nx//2,:].deg # or self.xaxis -= x_offset.deg
-        #self.yaxis = yy_new[:, self.ny//2].deg # or -= y_offset.deg
+        if regrid:
+            from scipy.interpolate import griddata
+            # 2D --> 1D
+            xinp     = xx_new.deg.reshape(xx_new.deg.size)
+            yinp     = yy_new.deg.reshape(yy_new.deg.size)
+            print('Regridding... May take time...')
+            if self.naxis == 2:
+                data_reg = griddata((xinp, yinp), self.data.reshape(self.data.size), 
+                (self.xx, self.yy), method='cubic',rescale=True)
+            elif self.naxis == 3:
+                data_reg = np.array([ griddata((xinp, yinp), data[i,:,:].reshape(self.data.size), 
+                    (self.xx, self.yy), method='cubic',rescale=True) for i in range(self.nv) ])
+            elif self.naxis == 4:
+                data_reg = np.array([[ griddata((xinp, yinp), data[j, i,:,:].reshape(self.data.size), 
+                    (self.xx, self.yy), method='cubic',rescale=True) 
+                for i in range(self.nv) ] for j in range(self.ns) ])
+            else:
+                print('ERROR\tImfits: NAXIS must be <= 4.')
+                return 0
+            self.cc = new_cent
+            self.data = data_reg
+        else:
+            xcent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
+            ycent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
+
+            # update
+            self.xx = xx_new.deg #alpha
+            self.yy = yy_new.deg #delta
+            self.cc = new_cent
+            self.xaxis = xx_new[ycent_indx, :].deg
+            self.yaxis = yy_new[:, xcent_indx].deg
+            #self.xaxis = xx_new[self.nx//2,:].deg # or self.xaxis -= x_offset.deg
+            #self.yaxis = yy_new[:, self.ny//2].deg # or -= y_offset.deg
 
 
     def convert_units(self, conversion='IvtoTb'):
