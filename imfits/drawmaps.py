@@ -315,23 +315,8 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
 
 
     # scale bar
-    if len(scalebar) == 0:
-        pass
-    elif len(scalebar) == 8:
-        barx, bary, barlength, textx, texty, text, colors, barcsize = scalebar
-
-        barx      = float(barx)
-        bary      = float(bary)
-        barlength = float(barlength)
-        textx     = float(textx)
-        texty     = float(texty)
-
-        ax.hlines(bary, barx - barlength*0.5, barx + barlength*0.5, lw=2, color=colors,zorder=10)
-        ax.text(textx, texty, text, color=colors, fontsize=barcsize,
-         horizontalalignment='center', verticalalignment='center')
-    else:
-        print ('The parameter scalebar must have 8 elements but does not.')
-
+    if len(scalebar):
+        add_scalebar(ax, scalebar)
     plt.savefig(outname, transparent = transparent)
 
     return ax
@@ -1092,13 +1077,13 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
     coords = {'bottom left': (0.1, 0.1),
     'bottom right': (0.9, 0.1),
     'top left': (0.1, 0.9),
-    'top right': (0.1, 0.1),
+    'top right': (0.9, 0.9),
     }
     if loc in coords.keys():
         xy = coords[loc]
     else:
         print('CAUTION\tplot_beam: loc keyword is not correct.')
-        return -1
+        return 0
     # plot
     bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
     beam = patches.Ellipse(xy=xy,
@@ -1129,23 +1114,81 @@ def add_colorbar_toaxis(im, ax, cbaroptions: list):
     cbar.set_label(cbar_lbl)
     return cax, cbar
 
-def add_scalebar(ax, scalebar: list, orientation='horizontal'):
-    if len(scalebar) != 8:
-        print ('scalebar must consist of 8 elements. Check scalebar.')
+def add_scalebar(ax, scalebar: list, orientation='horizontal',
+    loc: str = 'bottom right', barcolor: str = 'k', fontsize: float = 11.,
+    lw: float = 2., zorder: float = 10., alpha: float = 1.):
+    coords = {'bottom left': (0.1, 0.1),
+            'bottom right': (0.9, 0.1),
+            'top left': (0.1, 0.9),
+            'top right': (0.9, 0.9),
+            }
+    offsets = {'bottom left': (0.05, -0.02),
+            'bottom right': (-0.05, -0.02),
+            'top left': (0.05, -0.02),
+            'top right': (-0.05, -0.02),
+            }
 
-    # read
-    barx, bary, barlength, textx, texty, text, barcolor, barcsize = scalebar
+    if len(scalebar) == 5:
+        barlength, bartext, loc, barcolor, fontsize = scalebar
+        barlength = float(barlength)
+        fontsize  = float(fontsize)
 
-    # to float
-    barx      = float(barx)
-    bary      = float(bary)
-    barlength = float(barlength)
-    textx     = float(textx)
-    texty     = float(texty)
+        if loc in coords.keys():
+            barx, bary = coords[loc]
+            offx, offy = offsets[loc]
+        else:
+            print('CAUTION\tplot_beam: loc keyword is not correct.')
+            return 0
 
-    if orientation == 'vertical':
-        ax.vlines(barx, bary - barlength*0.5,bary + barlength*0.5, color=barcolor, lw=2, zorder=10)
+        inv = ax.transLimits.inverted()
+        if orientation == 'vertical':
+            offy = 0.
+            _, bary_l = ax.transLimits.transform(
+                inv.transform((barx, bary)) - np.array([0., barlength*0.5]))
+            _, bary_u = ax.transLimits.transform(
+                inv.transform((barx, bary)) + np.array([0., barlength*0.5,]))
+            ax.vlines(barx, bary_l, bary_u, 
+                color=barcolor, lw=lw, zorder=zorder,
+                transform=ax.transAxes, alpha=alpha)
+            ax.text(barx + offx, bary + offy, bartext, fontsize=fontsize,
+                color=barcolor, transform=ax.transAxes, 
+                verticalalignment='center', horizontalalignment=loc.split(' ')[1])
+        elif orientation == 'horizontal':
+            offx = 0.
+            barx_l, _ = ax.transLimits.transform(
+                inv.transform((barx, bary)) - np.array([barlength*0.5, 0]))
+            barx_u, _ = ax.transLimits.transform(
+                inv.transform((barx, bary)) + np.array([barlength*0.5, 0]))
+            ax.hlines(bary, barx_l, barx_u, 
+                color=barcolor, lw=lw, zorder=zorder,
+                transform=ax.transAxes, alpha=alpha)
+            ax.text(barx + offx, bary + offy, bartext, fontsize=fontsize,
+                color=barcolor, transform=ax.transAxes, 
+                horizontalalignment='center', verticalalignment='top')
+        else:
+            print('ERROR\tadd_scalebar: orientation must be vertical or horizontal.')
+            return 0
+    elif len(scalebar) == 8:
+        # read
+        barx, bary, barlength, textx, texty, text, barcolor, barcsize = scalebar
+
+        # to float
+        barx      = float(barx)
+        bary      = float(bary)
+        barlength = float(barlength)
+        textx     = float(textx)
+        texty     = float(texty)
+
+        if orientation == 'vertical':
+            ax.vlines(barx, bary - barlength*0.5,bary + barlength*0.5, 
+                color=barcolor, lw=lw, zorder=zorder, alpha=alpha)
+        elif orientation == 'horizontal':
+            ax.hlines(bary, barx - barlength*0.5,barx + barlength*0.5, 
+                color=barcolor, lw=lw, zorder=zorder, alpha=alpha)
+        else:
+            print('ERROR\tadd_scalebar: orientation must be vertical or horizontal.')
+            return 0
+
+        ax.text(textx,texty,text,color=barcolor,fontsize=barcsize,horizontalalignment='center',verticalalignment='center')
     else:
-        ax.hlines(bary, barx - barlength*0.5,barx + barlength*0.5, color=barcolor, lw=2, zorder=10)
-
-    ax.text(textx,texty,text,color=barcolor,fontsize=barcsize,horizontalalignment='center',verticalalignment='center')
+        print ('ERROR\tadd_scalebar: scalebar must consist of 3 or 8 elements. Check scalebar.')
