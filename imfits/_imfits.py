@@ -254,7 +254,7 @@ class Imfits():
             res_off  = np.sqrt(1./(term_sin + term_cos))
             self.res_off = res_off
         else:
-            self.res_off = None
+            self.res_off = self.beam[0] # bmaj
 
 
         # rest frequency (Hz)
