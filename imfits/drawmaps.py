@@ -1116,7 +1116,7 @@ def add_colorbar_toaxis(ax, cim=None, cbaroptions: list = [],
      - ticks
     '''
     # color image
-    if im:
+    if cim is not None:
         pass
     else:
         try:
