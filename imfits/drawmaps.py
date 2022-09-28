@@ -1102,7 +1102,7 @@ def add_colorbar_togrid(cim, grid, cbarlabel: str='',
         cbar.ax.set_ylabel(cbarlabel,color=labelcolor) # label
     return cbar
 
-def add_colorbar_toaxis(ax, cim=None, cbaroptions: list,
+def add_colorbar_toaxis(ax, cim=None, cbaroptions: list = [],
     ticks: list = None, fontsize: float = None, 
     tickcolor: str = 'k', labelcolor: str = 'k'):
     '''
@@ -1126,7 +1126,14 @@ def add_colorbar_toaxis(ax, cim=None, cbaroptions: list,
             return 0
 
     # setting for a color bar
-    cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+    if len(cbaroptions) == 0:
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', '']
+    elif len(cbaroptions) == 4:
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+    else:
+        print('WARNING\tadd_colorbar_toaxis: cbaroptions must have 4 elements. \
+            Input is ignored.')
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', '']
     divider = make_axes_locatable(ax)
     cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
 
