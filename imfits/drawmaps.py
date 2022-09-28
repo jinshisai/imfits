@@ -1138,7 +1138,7 @@ def add_colorbar_toaxis(ax, cim=None, cbaroptions: list = [],
     cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
 
     # add a color bar
-    cbar = plt.colorbar(cim, cax=cax, ticks=None)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
+    cbar = plt.colorbar(cim, cax=cax, ticks=ticks)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
     cbar.set_label(cbar_lbl, fontsize=fontsize, color=labelcolor)
     cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, color=tickcolor)
     return cax, cbar
