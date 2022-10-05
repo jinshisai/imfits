@@ -12,6 +12,8 @@ import numpy as np
 from astropy.io import fits
 import astropy.wcs
 from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 import matplotlib.pyplot as plt
 
 
@@ -27,8 +29,7 @@ class Imfits():
     Read a fits file, store the information, and draw maps.
     '''
 
-
-    def __init__(self, infile, pv=False):
+    def __init__(self, infile, pv=False, frame=None):
         self.file = infile
         self.data, self.header = fits.getdata(infile, header=True)
 
@@ -102,7 +103,19 @@ class Imfits():
             phi_p = 180.
 
 
-        # coordinates
+        # Coordinates
+        # Coordinate frame
+        if 'RADESYS' in header:
+            self.frame = header['RADESYS'].strip()
+            if 'EQUINOX' in header:
+                self.equinox = 'J' + str(header['EQUINOX'])
+            else:
+                self.equinox = None
+        else:
+            print('WARRING\tread_header: Cannot find info. of the coordinate system.')
+            print('WARRING\tread_header: Input frame by hand to get coordinates.')
+            self.frame = None
+
         # read projection type
         try:
             projection = label_i[0].replace('RA---','')
@@ -380,8 +393,10 @@ class Imfits():
         #xx = xx*np.cos(np.radians(yy))
         # dec
         #yy = yy - ref_y
-        cc   = SkyCoord(ref_x, ref_y, frame='icrs', unit=(u.deg, u.deg))
-        grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame='icrs', unit=(u.deg,u.deg))
+        cc   = SkyCoord(ref_x, ref_y, frame=self.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=self.equinox)
+        grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame=self.frame.lower(), 
+            unit=(u.deg,u.deg), equinox=self.equinox)
         xx, yy = cc.spherical_offsets_to(grid)
 
         self.xx = xx.deg
@@ -403,14 +418,12 @@ class Imfits():
                by space.
             regrid (bool): Interpolate data to make the new grid fit to the old grid
         '''
-        # module
-        from astropy.coordinates import SkyCoord
-        import astropy.units as u
-
         # ra, dec
-        cc = SkyCoord(self.cc[0], self.cc[1], frame='icrs', unit=(u.deg, u.deg))
+        cc = SkyCoord(self.cc[0], self.cc[1], frame=self.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=self.equinox)
         c_ra, c_dec = coord_center.split(' ')
-        cc_new      = SkyCoord(c_ra, c_dec, frame='icrs', unit=(u.hour, u.deg))
+        cc_new      = SkyCoord(c_ra, c_dec, frame=self.frame.lower(), 
+            unit=(u.hour, u.deg), equinox=self.equinox)
         cra_deg     = cc_new.ra.degree               # in degree
         cdec_deg    = cc_new.dec.degree              # in degree
         new_cent    = np.array([cra_deg, cdec_deg])  # absolute coordinate of the new image center
@@ -426,7 +439,8 @@ class Imfits():
         #alpha = (alpha - cra_deg)*np.cos(np.radians(delta))
         #delta = delta - cdec_deg
         # more exactly
-        grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame='icrs', unit=(u.deg,u.deg))
+        grid = SkyCoord(self.xx_wcs, self.yy_wcs, frame=self.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=self.equinox)
         # in offset
         grid_new = cc_new.spherical_offsets_to(grid)
         xx_new, yy_new = grid_new
@@ -493,6 +507,41 @@ class Imfits():
                 Currently supported conversions are\
                 Iv <--> Tb and Jy/arcsec^2 to Jy/beam.')
             return
+
+
+    def attach_vectors(self, infile, sep='\s+', rotate=False,
+        comment='=', pandas_args=[]):
+        '''
+        Read and contain polarization/B-field vectors.
+
+        Parameters
+        ----------
+
+        '''
+        import pandas as pd
+
+        # read
+        if len(pandas_args):
+            self.vectors = pd.read_csv(infile, *pandas_args)
+        else:
+            self.vectors = pd.read_csv(infile, sep=sep, comment=comment)
+
+        if rotate:
+            self.vectors.ANG += 90. # rotate by 90 degree
+
+        # offset from center
+        cc = SkyCoord(*self.cc, frame=self.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=self.equinox)
+        pcoord = SkyCoord(self.vectors.RA.values, self.vectors.DEC.values, 
+            frame=self.frame.lower(), unit=(u.hour, u.degree), equinox=self.equinox)
+        pa_offset  = cc.position_angle(pcoord)
+        sep_offset = cc.separation(pcoord)
+        #cc.directional_offset_by(pa_offset, sep_offset) # return absolute ra, dec
+        dra, ddec = cc.spherical_offsets_to(pcoord)
+
+        # add offset from cetner
+        self.vectors.insert(self.vectors.columns.get_loc('DEC')+1, 'delDEC', ddec.value)
+        self.vectors.insert(self.vectors.columns.get_loc('DEC')+1, 'delRA', dra.value)
 
 
     def getmoments(self, moment=[0], vrange=[], threshold=[],
