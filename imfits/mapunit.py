@@ -39,7 +39,7 @@ def IvTOTex(Iv, nu0, bmaj, bmin):
     bmaj = bmaj*np.pi/180. # deg --> radian
     bmin = bmin*np.pi/180. # deg --> radian
 
-    C1=2.*hp*(nu0*nu0*nu0)/(clight*clight*1.e6) # in MKS
+    C1=2.*hp*(nu0*nu0*nu0)/(clight*clight) # in cgs
 
     # Jy/beam -> Jy/str
     # Omg_beam (str) = (pi/4ln(2))*beam (rad^2)
@@ -50,7 +50,7 @@ def IvTOTex(Iv, nu0, bmaj, bmin):
     Istr = Istr*1.0e-26 # Jy --> MKS (Jy = 10^-26 Wm-2Hz-1)
     Istr = Istr*1.e7*1.e-4 # MKS --> cgs
 
-    Tex = (hp*nu0/kb)/(np.log((C1/(Istr)+1.))) # no approximation [K]
+    Tex = (hp*nu0/kb)/(np.log(C1/Istr + 1.)) # no approximation [K]
     return Tex
 
 
