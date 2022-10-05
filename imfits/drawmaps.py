@@ -982,20 +982,33 @@ def trim_data(data, x, y, v,
     '''
     data = np.squeeze(data)
     if len(data.shape) == 2:
+        ny, nx = data.shape
         yimin, yimax = index_between(y, ylim, mode='edge')[0]
         ximin, ximax = index_between(x, xlim, mode='edge')[0]
+        # for beautiful map edge
+        yimin = yimin - 1 if yimin >= 1 else yimin
+        yimax = yimax + 1 if yimax < ny-1 else yimax
+        ximin = ximin - 1 if ximin >= 1 else ximin
+        ximax = ximax + 1 if ximax < nx-1 else ximax
+        # triming
         data = data[yimin:yimax+1, ximin:ximax+1]
-        y    = y[index_between(y, ylim)]
-        x    = x[index_between(x, xlim)]
+        y = y[yimin:yimax+1]
+        x = x[ximin:ximax+1]
         return data, x, y
     elif len(data.shape) == 3:
         vimin, vimax = index_between(v, vlim, mode='edge')[0]
         yimin, yimax = index_between(y, ylim, mode='edge')[0]
         ximin, ximax = index_between(x, xlim, mode='edge')[0]
+        # for beautiful map edges
+        yimin = yimin - 1 if yimin >= 1 else yimin
+        yimax = yimax + 1 if yimax < ny-1 else yimax
+        ximin = ximin - 1 if ximin >= 1 else ximin
+        ximax = ximax + 1 if ximax < nx-1 else ximax
+        # triming
         data = data[vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
         v    = v[index_between(v, vlim)]
-        y    = y[index_between(y, ylim)]
-        x    = x[index_between(x, xlim)]
+        y = y[yimin:yimax+1]
+        x = x[ximin:ximax+1]
         return data, x, y, v
     else:
         print('trim_data: Invalid data shape.')
