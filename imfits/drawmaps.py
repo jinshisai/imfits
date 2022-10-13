@@ -111,11 +111,11 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
     plt.rcParams['font.size']       = csize  # fontsize
 
     if darkbg:
-        tickcolor= 'white'
-        axiscolor= 'white'
-        ccolor   = 'white'
-        bcolor   = 'white'
-        labelcolor='k'
+        tickcolor   = 'white'
+        axiscolor   = 'white'
+        ccolor      = 'white'
+        bcolor      = 'white'
+        labelcolor  = 'k'
         transparent = False
     else:
         transparent=True
@@ -195,10 +195,10 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
     else:
         print ('ERROR\tchannelmaps: Input imscale is wrong.\
          Must be [xmin, xmax, ymin, ymax]')
-    xx, yy = np.meshgrid(xaxis, yaxis)
 
+    # meshgrid if needed
+    if exact_coord: xx, yy  = np.meshgrid(xaxis, yaxis)
 
-    # !!!!! plot !!!!!
     # setting figure
     if ax is not None:
         pass
@@ -238,21 +238,17 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
             imcolor = ax.imshow(data, cmap=cmap, origin='lower', extent=extent, norm=norm, interpolation=interpolation, rasterized=True)
 
         # color bar
-        if colorbar:
-            cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
-            divider = make_axes_locatable(ax)
-            cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
-            cbar    = plt.colorbar(imcolor, cax=cax)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
-            cbar.set_label(cbar_lbl)
+        if colorbar: add_colorbar_toaxis(ax, imcolor, cbaroptions,
+            fontsize=csize, tickcolor=tickcolor, labelcolor=labelcolor)
 
     # contour map
     if contour:
         if exact_coord:
             imcont = ax.contour(xx, yy, data, colors=ccolor,
-                origin='lower', levels=clevels, linewidths=clw)
+                levels=clevels, linewidths=clw)
         else:
             imcont = ax.contour(data, colors=ccolor, origin='lower', levels=clevels,
-                linewidths=clw, extent=(xmin,xmax,ymin,ymax))
+                linewidths=clw, extent=extent)
 
 
     # set axes
@@ -309,14 +305,14 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
         else:
             print ('ERROR\tIdistmap: prop_star must be size of 3 or 4.')
             return
-
         ax.hlines(pos_cstar[1], pos_cstar[0]-ll*0.5, pos_cstar[0]+ll*0.5, lw=lw, color=cl,zorder=11)
         ax.vlines(pos_cstar[0], pos_cstar[1]-ll*0.5, pos_cstar[1]+ll*0.5, lw=lw, color=cl,zorder=11)
 
 
     # scale bar
-    if len(scalebar):
-        add_scalebar(ax, scalebar)
+    if len(scalebar): add_scalebar(ax, scalebar)
+
+    # save fig
     plt.savefig(outname, transparent = transparent)
 
     return ax
@@ -986,20 +982,33 @@ def trim_data(data, x, y, v,
     '''
     data = np.squeeze(data)
     if len(data.shape) == 2:
+        ny, nx = data.shape
         yimin, yimax = index_between(y, ylim, mode='edge')[0]
         ximin, ximax = index_between(x, xlim, mode='edge')[0]
+        # for beautiful map edge
+        yimin = yimin - 1 if yimin >= 1 else yimin
+        yimax = yimax + 1 if yimax < ny-1 else yimax
+        ximin = ximin - 1 if ximin >= 1 else ximin
+        ximax = ximax + 1 if ximax < nx-1 else ximax
+        # triming
         data = data[yimin:yimax+1, ximin:ximax+1]
-        y    = y[index_between(y, ylim)]
-        x    = x[index_between(x, xlim)]
+        y = y[yimin:yimax+1]
+        x = x[ximin:ximax+1]
         return data, x, y
     elif len(data.shape) == 3:
         vimin, vimax = index_between(v, vlim, mode='edge')[0]
         yimin, yimax = index_between(y, ylim, mode='edge')[0]
         ximin, ximax = index_between(x, xlim, mode='edge')[0]
+        # for beautiful map edges
+        yimin = yimin - 1 if yimin >= 1 else yimin
+        yimax = yimax + 1 if yimax < ny-1 else yimax
+        ximin = ximin - 1 if ximin >= 1 else ximin
+        ximax = ximax + 1 if ximax < nx-1 else ximax
+        # triming
         data = data[vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
         v    = v[index_between(v, vlim)]
-        y    = y[index_between(y, ylim)]
-        x    = x[index_between(x, xlim)]
+        y = y[yimin:yimax+1]
+        x = x[ximin:ximax+1]
         return data, x, y, v
     else:
         print('trim_data: Invalid data shape.')
@@ -1091,10 +1100,10 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
         angle=bpa, transform=ax.transAxes, alpha=alpha, zorder=zorder)
     ax.add_patch(beam)
 
-def add_colorbar_togrid(im, grid, cbarlabel: str='',
+def add_colorbar_togrid(cim, grid, cbarlabel: str='',
     tickcolor: str = 'k', axiscolor: str = 'k', labelcolor: str = 'k'):
     cax  = grid.cbar_axes[0]
-    cbar = plt.colorbar(im, cax=cax) # ticks=cbarticks
+    cbar = plt.colorbar(cim, cax=cax) # ticks=cbarticks
     cax.toggle_label(True)
     cbar.ax.yaxis.set_tick_params(color=tickcolor) # tick color
     cbar.ax.spines["bottom"].set_color(axiscolor)  # axes color
@@ -1106,12 +1115,45 @@ def add_colorbar_togrid(im, grid, cbarlabel: str='',
         cbar.ax.set_ylabel(cbarlabel,color=labelcolor) # label
     return cbar
 
-def add_colorbar_toaxis(im, ax, cbaroptions: list):
-    cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+def add_colorbar_toaxis(ax, cim=None, cbaroptions: list = [],
+    ticks: list = None, fontsize: float = None, 
+    tickcolor: str = 'k', labelcolor: str = 'k'):
+    '''
+    Add color bar to axes object.
+
+    Parameters:
+     - ax (mpl axes object): axes.
+     - cim (color image):
+     - cbaroptions (list): [loc, width, pad]
+     - fontsize
+     - ticks
+    '''
+    # color image
+    if cim is not None:
+        pass
+    else:
+        try:
+            cim = ax.images[0] # assume the first one is a color map.
+        except:
+            print('ERROR\tadd_colorbar_toaxis: cannot find a color map.')
+            return 0
+
+    # setting for a color bar
+    if len(cbaroptions) == 0:
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', '']
+    elif len(cbaroptions) == 4:
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+    else:
+        print('WARNING\tadd_colorbar_toaxis: cbaroptions must have 4 elements. \
+            Input is ignored.')
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', '']
     divider = make_axes_locatable(ax)
     cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
-    cbar    = plt.colorbar(imcolor, cax=cax)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
-    cbar.set_label(cbar_lbl)
+
+    # add a color bar
+    cbar = plt.colorbar(cim, cax=cax, ticks=ticks)#, ax = ax, orientation=cbar_loc, aspect=float(cbar_wd), pad=float(cbar_pad))
+    cbar.set_label(cbar_lbl, fontsize=fontsize, color=labelcolor)
+    cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, color=tickcolor)
     return cax, cbar
 
 def add_scalebar(ax, scalebar: list, orientation='horizontal',
@@ -1133,12 +1175,18 @@ def add_scalebar(ax, scalebar: list, orientation='horizontal',
         barlength = float(barlength)
         fontsize  = float(fontsize)
 
-        if loc in coords.keys():
-            barx, bary = coords[loc]
-            offx, offy = offsets[loc]
-        else:
-            print('CAUTION\tplot_beam: loc keyword is not correct.')
-            return 0
+        if type(loc) == str:
+            if loc in coords.keys():
+                barx, bary = coords[loc]
+                offx, offy = offsets[loc]
+            else:
+                print('CAUTION\tplot_beam: loc keyword is not correct.')
+                return 0
+        elif type(loc) == list:
+            barx, bary = loc[0]
+            txtx, txty = loc[1]
+            offx = txtx - barx
+            offy = txty - bary
 
         inv = ax.transLimits.inverted()
         if orientation == 'vertical':
@@ -1191,4 +1239,4 @@ def add_scalebar(ax, scalebar: list, orientation='horizontal',
 
         ax.text(textx,texty,text,color=barcolor,fontsize=barcsize,horizontalalignment='center',verticalalignment='center')
     else:
-        print ('ERROR\tadd_scalebar: scalebar must consist of 3 or 8 elements. Check scalebar.')
+        print ('ERROR\tadd_scalebar: scalebar must consist of 5 or 8 elements. Check scalebar.')
