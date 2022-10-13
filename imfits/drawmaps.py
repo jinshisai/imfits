@@ -1175,12 +1175,18 @@ def add_scalebar(ax, scalebar: list, orientation='horizontal',
         barlength = float(barlength)
         fontsize  = float(fontsize)
 
-        if loc in coords.keys():
-            barx, bary = coords[loc]
-            offx, offy = offsets[loc]
-        else:
-            print('CAUTION\tplot_beam: loc keyword is not correct.')
-            return 0
+        if type(loc) == str:
+            if loc in coords.keys():
+                barx, bary = coords[loc]
+                offx, offy = offsets[loc]
+            else:
+                print('CAUTION\tplot_beam: loc keyword is not correct.')
+                return 0
+        elif type(loc) == list:
+            barx, bary = loc[0]
+            txtx, txty = loc[1]
+            offx = txtx - barx
+            offy = txty - bary
 
         inv = ax.transLimits.inverted()
         if orientation == 'vertical':
