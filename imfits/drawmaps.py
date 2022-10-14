@@ -996,6 +996,7 @@ def trim_data(data, x, y, v,
         x = x[ximin:ximax+1]
         return data, x, y
     elif len(data.shape) == 3:
+        nv, ny, nx = data.shape
         vimin, vimax = index_between(v, vlim, mode='edge')[0]
         yimin, yimax = index_between(y, ylim, mode='edge')[0]
         ximin, ximax = index_between(x, xlim, mode='edge')[0]
