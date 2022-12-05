@@ -428,3 +428,28 @@ def regrid_image(self,
             method='cubic',rescale=True) for i in channel_range ] for j in range(self.ns)])
 
     return xc, yc, data_reg
+
+
+
+### functions
+def estimate_noise(_d, nitr=1000, thr=2.3):
+    '''
+    Estimate map noise
+
+    _d (array): Data
+    nitr (int): Number of the maximum iteration
+    thr (float): Threshold of the each iteration
+    '''
+
+    d = _d.copy()
+    rms = np.sqrt(np.nanmean(d*d))
+    for i in range(nitr):
+        rms_p = rms
+        d[d >= thr*rms] = np.nan
+        rms = np.sqrt(np.nanmean(d*d))
+
+        if (rms - rms_p)*(rms - rms_p) < 1e-20:
+            return rms
+
+    print('Reach maximum number of iteration.')
+    return rms

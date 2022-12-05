@@ -996,6 +996,7 @@ def trim_data(data, x, y, v,
         x = x[ximin:ximax+1]
         return data, x, y
     elif len(data.shape) == 3:
+        nv, ny, nx = data.shape
         vimin, vimax = index_between(v, vlim, mode='edge')[0]
         yimin, yimax = index_between(y, ylim, mode='edge')[0]
         ximin, ximax = index_between(x, xlim, mode='edge')[0]
@@ -1037,6 +1038,7 @@ def index_between(t, tlim, mode='all'):
             print('index_between: mode parameter is not right.')
             return (tlim[0] <= t) * (t <= tlim[1])
 
+
 def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
     zorder=10.):
     '''
@@ -1077,6 +1079,15 @@ def add_line(ax, length=None, pa=0., cent=(0,0), width=1., color='k',
         ls=ls, alpha=alpha, zorder=zorder)
 
 
+def add_box(ax, xc, yc, xl, yl, width=1., color='k', 
+    zorder=10., ls='--', angle=0.0):
+    import matplotlib.patches as patches
+
+    # box
+    rect = patches.Rectangle((xc - xl*0.5, yc - yl*0.5), xl, yl, 
+        ls=ls, color=color, fill=False, linewidth=width, zorder=zorder, angle=angle)
+    ax.add_patch(rect)
+
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
  bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.,
@@ -1099,6 +1110,7 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
         width=bmin_plot, height=bmaj_plot, fc=bcolor,
         angle=bpa, transform=ax.transAxes, alpha=alpha, zorder=zorder)
     ax.add_patch(beam)
+
 
 def add_colorbar_togrid(cim, grid, cbarlabel: str='',
     tickcolor: str = 'k', axiscolor: str = 'k', labelcolor: str = 'k'):

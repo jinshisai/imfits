@@ -29,9 +29,14 @@ class Imfits():
     Read a fits file, store the information, and draw maps.
     '''
 
-    def __init__(self, infile, pv=False, frame=None):
+    def __init__(self, infile, pv=False, frame=None, equinox='J2000'):
         self.file = infile
         self.data, self.header = fits.getdata(infile, header=True)
+
+        self.frame = frame if frame else None
+
+        if equinox:
+            self.equinox = equinox
 
         if pv:
             self.read_pvfits()
@@ -105,16 +110,19 @@ class Imfits():
 
         # Coordinates
         # Coordinate frame
-        if 'RADESYS' in header:
-            self.frame = header['RADESYS'].strip()
-            if 'EQUINOX' in header:
-                self.equinox = 'J' + str(header['EQUINOX'])
-            else:
-                self.equinox = None
+        if self.frame:
+            pass
         else:
-            print('WARRING\tread_header: Cannot find info. of the coordinate system.')
-            print('WARRING\tread_header: Input frame by hand to get coordinates.')
-            self.frame = None
+            if 'RADESYS' in header:
+                self.frame = header['RADESYS'].strip()
+                if 'EQUINOX' in header:
+                    self.equinox = 'J' + str(header['EQUINOX'])
+                else:
+                    self.equinox = None
+            else:
+                print('WARRING\tread_header: Cannot find info. of the coordinate system.')
+                print('WARRING\tread_header: Input frame by hand to get coordinates.')
+                self.frame = None
 
         # read projection type
         try:
@@ -182,9 +190,10 @@ class Imfits():
 
 
         # frequency --> velocity
+        keys_velocity = ['VRAD', 'VELO', 'VELO-LSR']
         if len(vaxis) > 1:
             if velocity:
-                if label_i[2] == 'VRAD' or label_i[2] == 'VELO':
+                if label_i[2] in keys_velocity:
                     print ('The third axis is ', label_i[2])
                     # m/s --> km/s
                     vaxis    = vaxis*1.e-3 # m/s --> km/s
@@ -847,3 +856,31 @@ class Imfits():
         term_cos = (np.cos(del_pa)/bmaj)**2.
         res_off  = np.sqrt(1./(term_sin + term_cos))
         return res_off
+
+
+    def get_relative_coordinates(self, coord, frame=None):
+        '''
+        Convert a coordinate to a relative coordinate.
+
+        Parameters
+        ----------
+            coord (str): Absolute coordinate.
+        '''
+        if frame is not None:
+            pass
+        else:
+            frame = self.frame.lower()
+        cc = SkyCoord(self.cc[0], self.cc[1], frame=self.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=self.equinox)
+        ci_ra, ci_dec = coord.split(' ')
+        if (':' in ci_ra) or ('h' in ci_ra):
+            unit=(u.hour, u.deg)
+        else:
+            unit=(u.deg, u.deg)
+        ci = SkyCoord(ci_ra, ci_dec, frame=frame, 
+            unit=unit, equinox=self.equinox)
+
+        # in offset
+        ci_rel = cc.spherical_offsets_to(ci)
+        ra_out, dec_out = ci_rel[0].deg, ci_rel[1].deg
+        return ra_out, dec_out

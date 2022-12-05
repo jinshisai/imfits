@@ -19,16 +19,17 @@ mp     = constants.m_p.cgs.value      # Proton mass (g)
 
 
 # Jy/beam --> K (when optically thick)
-def IvTOTex(Iv, nu0, bmaj, bmin):
+def IvTOTex(Iv, nu0, bmaj, bmin, sigI=None):
     '''
-    Convert Iv to Tb
+    Convert Iv to Tb WITHOUT Rayleigh-Jeans approximation.
 
     Parameters
     ----------
-        nu0 = header['RESTFRQ'] rest frequency [Hz]
-        bmaj = header['BMAJ'] # major beam size [deg]
-        bmin = header['BMIN'] # minor beam size [deg]
-        Iv: intensity [Jy/beam]
+        nu0 (float): Rest frequency [Hz]
+        bmaj (float): Major beam size [deg]
+        bmin (float): Minor beam size [deg]
+        Iv (array or float): Intensity [Jy/beam]
+        sigI (array or float): Sigma of intensity [Jy/beam]
 
     Others
     ------
@@ -51,7 +52,17 @@ def IvTOTex(Iv, nu0, bmaj, bmin):
     Istr = Istr*1.e7*1.e-4 # MKS --> cgs
 
     Tex = (hp*nu0/kb)/(np.log(C1/Istr + 1.)) # no approximation [K]
-    return Tex
+
+    if sigI:
+        # Error propagation
+        dT_dI = (hp*nu0/kb) * C1 * (Istr**(-2.)) * (C1/Istr + 1.)**(-1.) \
+        * (np.log(C1/Istr + 1.))**(-2) # derivative
+        sigI_str = sigI / bTOstr * 1.0e-26 * 1.e7 * 1.e-4
+        sigTex = np.sqrt(dT_dI*dT_dI*sigI_str*sigI_str)
+
+        return Tex, sigTex
+    else:
+        return Tex
 
 
 # Calculate equivalent brightness temperature
