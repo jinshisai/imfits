@@ -230,6 +230,26 @@ def TbTOIv(Tb, nu0, bmaj, bmin):
     return Iv
 
 
+def TTOIv(T, nu0, bmaj, bmin):
+    '''
+    Convert T to Iv with the full Plank function.
+
+    Parameters
+    ----------
+     T (float): Temperature [K]
+     nu0 (float): Rest frequency [Hz]
+     bmaj (float): Major beam size [deg]
+     bmin (float): Minor beam size [deg]
+
+    Return
+    ------
+     Iv: Intensity [Jy/beam]
+    '''
+
+    return Bv_Jybeam(T, nu0, bmaj, bmin)
+
+
+
 # partition function
 def Pfunc(EJ, gJ, J, Tk):
     # EJ: energy at energy level J
@@ -266,14 +286,13 @@ def Bv_Jybeam(T,v,bmaj,bmin):
     Unit is [erg s-1 cm-2 Hz-1 str-1].
 
     T: temprature [K]
-    v: frequency [GHz]
-    bmaj, bmin: beamsize [arcsec]
+    v: frequency [Hz]
+    bmaj, bmin: beamsize [deg]
     '''
 
     # units
-    v = v * 1.e9 # GHz --> Hz
-    bmaj = np.radians(bmaj/3600.) # arcsec --> radian
-    bmin = np.radians(bmin/3600.) # arcsec --> radian
+    bmaj = np.radians(bmaj) # arcsec --> radian
+    bmin = np.radians(bmin) # arcsec --> radian
 
     # coefficient for unit convertion
     # Omg_beam (sr) = (pi/4ln(2))*beam (rad^2)
