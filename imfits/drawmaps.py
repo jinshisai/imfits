@@ -215,15 +215,16 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
     if type(color_norm) == str:
         if color_norm == 'log':
             norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
-        elif color_norm.replace(' ','').lower() == 'asinhstretch':
-            def _forward(x, a=0.1):
-                return np.arcsinh(x/a)/np.arcsinh(1./a)
-            def _inverse(x, a=0.1):
-                return a*np.sinh(x*(np.arcsinh(1/a)))
-            norm = mpl.colors.FuncNorm((_forward, _inverse), vmin=vmin, vmax=vmax)
     elif type(color_norm) == tuple:
         if hasattr(color_norm[0], '__call__'):
             norm = mpl.colors.FuncNorm(color_norm, vmin=vmin, vmax=vmax)
+        elif color_norm[0].replace(' ','').lower() == 'asinhstretch':
+            a = float(color_norm[1])
+            def _forward(x,):
+                return np.arcsinh(x/a)/np.arcsinh(1./a)
+            def _inverse(x,):
+                return a*np.sinh(x*(np.arcsinh(1/a)))
+            norm = mpl.colors.FuncNorm((_forward, _inverse), vmin=vmin, vmax=vmax)
         else:
             print ('ERROR\tintensitymap: color_norm must be strings or tuple of functions.')
     else:
