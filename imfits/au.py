@@ -128,6 +128,88 @@ def imrotate(image, angle=0):
     return newimage
 
 
+
+def sky_deprojection(image, pa, inc,
+    inmode_data=False, xx=[], yy=[]):
+    '''
+    Deproject image from sky coordinates to local coordinates.
+
+    Parameters
+    ----------
+    '''
+    # Modules
+    from scipy.interpolate import griddata
+    import scipy.ndimage
+    
+    # function
+    def imrotate_2d(d, angle=0.):
+        # check whether the array includes nan
+        # nan --> 0 for interpolation
+        if np.isnan(d).any() == False:
+            pass
+        elif np.isnan(d).any() == True:
+            #print ('CAUTION\timrotate: Input image array includes nan. Replace nan with 0 for interpolation when rotate image.')
+            d[np.isnan(d)] = 0.
+
+        # rotate image
+        newimage = scipy.ndimage.rotate(d, -angle, reshape=False)
+        return newimage
+
+    
+    # Rotation angles
+    rotdeg  = 90. - pa # 180. - pa
+    rotrad  = np.radians(rotdeg)
+    incrad  = np.radians(inc)
+
+    # Data
+    if inmode_data:
+        data = image
+        naxis = len(data.shape)
+        if len(xx) * len(yy) == 0:
+            print('ERROR:\tsky_deprojection: xx and yy must be given when inmode_data=True.')
+            return 0
+    else:
+        data = image.data
+        xx = image.xx
+        yy = image.yy
+        naxis = image.naxis
+        
+    # Rotation of the coordinate by pa,
+    #   in which xprime = xcos + ysin, and yprime = -xsin + ycos
+    # now, x axis is positive in the left hand direction (x axis is inversed).
+    # right hand (clockwise) rotation will be positive in angles.
+    xxp = xx*np.cos(rotrad) + yy*np.sin(rotrad)
+    yyp = (- xx*np.sin(rotrad) + yy*np.cos(rotrad))/np.cos(incrad)
+
+
+    # 2D --> 1D
+    xinp = xxp.reshape(xxp.size)
+    yinp = yyp.reshape(yyp.size)
+    print('Deprojecting image. Interpolation may take time.')
+    if naxis == 2:
+        data_reg = imrotate_2d(
+        griddata((xinp, yinp), data.reshape(data.size), 
+            (xx, yy), method='cubic',rescale=True), 
+        angle=-rotdeg)
+    elif naxis == 3:
+        data_reg = np.array([ imrotate_2d(
+            griddata((xinp, yinp), data[i,:,:].reshape(data[i,:,:].size), 
+                (xx, yy), method='cubic',rescale=True), 
+            angle=-rotdeg)
+            for i in range(data.shape[0])])
+    elif naxis == 4:
+        data_reg = np.array([[ imrotate_2d(
+            griddata((xinp, yinp), data[i, j,:,:].reshape(data[i, j,:,:].size), 
+                (xx, yy), method='cubic',rescale=True), 
+            angle=-rotdeg)
+            for j in range(data.shape[1]) ] for i in range(data.shape[0]) ])
+    else:
+        print('ERROR\tsky_deprojection: NAXIS must be <= 4.')
+        return 0
+
+    return data_reg
+    
+
 # functions
 # 2D linear function
 def func_G93(del_ra, del_dec, v0, a, b):
@@ -453,3 +535,16 @@ def estimate_noise(_d, nitr=1000, thr=2.3):
 
     print('Reach maximum number of iteration.')
     return rms
+
+
+def get_1Dresolution(bmaj, bmin, bpa, pa):
+    # an ellipse of the beam
+    # (x/bmin)**2 + (y/bmaj)**2 = 1
+    # y = x*tan(theta)
+    # --> solve to get resolution in the direction of pv cut with P.A.=pa
+    del_pa = pa - bpa
+    del_pa = del_pa*np.pi/180. # radian
+    term_sin = (np.sin(del_pa)/bmin)**2.
+    term_cos = (np.cos(del_pa)/bmaj)**2.
+    res_off  = np.sqrt(1./(term_sin + term_cos))
+    return res_off
