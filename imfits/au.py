@@ -260,23 +260,27 @@ def sky_deprojection(image, pa, inc,
 
     # Data
     if inmode_data:
-        data = image
+        data = image.copy()
         naxis = len(data.shape)
         if len(xx) * len(yy) == 0:
             print('ERROR:\tsky_deprojection: xx and yy must be given when inmode_data=True.')
             return 0
     else:
-        data = image.data
-        xx = image.xx
-        yy = image.yy
+        data = image.data.copy()
+        xx = image.xx.copy()
+        yy = image.yy.copy()
+        dx = image.delx
+        dy = image.dely
         naxis = image.naxis
-        
+
     # Rotation of the coordinate by pa,
     #   in which xprime = xcos + ysin, and yprime = -xsin + ycos
     # now, x axis is positive in the left hand direction (x axis is inversed).
     # right hand (clockwise) rotation will be positive in angles.
     xxp = xx*np.cos(rotrad) + yy*np.sin(rotrad)
     yyp = (- xx*np.sin(rotrad) + yy*np.cos(rotrad))/np.cos(incrad)
+    dxp = xxp[0,1] - xxp[0,0]
+    dyp = yyp[1,0] - yyp[0,0]
 
 
     # 2D --> 1D
@@ -303,6 +307,10 @@ def sky_deprojection(image, pa, inc,
     else:
         print('ERROR\tsky_deprojection: NAXIS must be <= 4.')
         return 0
+
+    # scaling for flux conservation
+    data_reg *= np.cos(incrad)
+    #data_reg *= np.nansum(data[np.where(np.abs(yyp) <= np.nanmax(yy))])/np.nansum(data_reg)
 
     return data_reg
     
