@@ -22,6 +22,76 @@ pcTOcm = 3.09e18        # pc --> cm
 
 
 # Functions
+def getflux(image, r=None, rlim=None, inmode_data=False,
+    istokes = 0, ivelocity=0, dx=None, dy=None, beam=None, rms=None):
+    '''
+    Get flux from an image.
+
+    Parameters
+    ----------
+    image (object): Input image. Must be Imfits object,
+     or ndarray when inmode_data=True.
+    r (ndarray): Radial coordinates of the input image (arcsec).
+    rlim (float): Radial range where flux is measured (arcsec).
+    inmode_data (bool): The input image will be treated as ndarray if True.
+     Default False.
+    istokes (int): Index for the stokes axis.
+    ivelocity (int): Index for the velocity axis.
+    '''
+    # read data
+    if inmode_data:
+        _d = image.copy()
+        q = [dx, dy, beam]
+        if q.count(None) >= 1:
+            print('ERROR\tgetflux: necessary parameters are missing.')
+            print('ERROR\tgetflux: all subparameters must be provided\
+                when inmode_data = True.')
+            return 0
+        header = []
+    else:
+        _d = image.data.copy()
+        dx, dy = np.abs(image.delx), np.abs(image.dely)
+        dx *= 3600. # to arcsec
+        dy *= 3600. # to arcsec
+        beam = image.beam
+        r = np.sqrt(image.xx ** 2. + image.yy ** 2.) * 3600. # deg --> arcsec
+        header = image.header
+    # data shape
+    _d = dropaxes(_d, istokes=istokes, ivelocity=ivelocity)
+
+    # radial range
+    if rlim is not None:
+        if r is None:
+            print('ERROR:\tgetflux: r is not given.')
+            print('ERROR:\tgetflux: Ignore the input rlim.')
+            print('ERROR:\tgetflux: Give radial coordinates to limit a radial range.')
+            rrange = (~np.isnan(_d))
+        else:
+            rrange = np.where(r <= rlim)
+
+    # pixel size in units of beam area
+    beam_area = beam[0] * beam[1] * np.pi/(4.*np.log(2.)) # arcsec^2
+    ds = dx*dy/beam_area # in units of beam area
+
+    # unit
+    if 'BUNIT' in header:
+        if header['BUNIT'] == 'Jy/beam':
+            pass
+        else:
+            print('CAUTION\tgetflux: The unit of intensity seems not Jy/beam.')
+            print('CAUTION\tgetflux: Currently only Jy/beam is supported.')
+            print('CAUTION\tgetflux: The calculated flux might be wrong.')
+
+    # get flux
+    flux = np.sum(_d[rrange] * ds)
+
+    if rms is not None:
+        e_flux = np.sum( np.sqrt(_d[rrange].size) * rms * ds)
+        return flux, e_flux
+    else:
+        return flux
+
+
 def get_1Dprofile(image, pa, average_side=False):
     '''
     Get one dimensional profile in a orientation at a position angule.
@@ -548,3 +618,15 @@ def get_1Dresolution(bmaj, bmin, bpa, pa):
     term_cos = (np.cos(del_pa)/bmaj)**2.
     res_off  = np.sqrt(1./(term_sin + term_cos))
     return res_off
+
+
+def dropaxes(data, istokes=0, ivelocity=0):
+    if len(data.shape) == 2:
+        return data
+    elif len(data.shape) == 3:
+        return data[ivelocity,:,:]
+    elif len(data.shape) == 4:
+        return data[istokes, ivelocity, :, :]
+    else:
+        print('ERROR\tdropaxes: Data must be 2 to 4 dimensions.')
+        return 0

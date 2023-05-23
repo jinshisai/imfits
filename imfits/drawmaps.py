@@ -940,7 +940,7 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
 
 def generate_grid(nrow, ncol, figsize=(11.69, 8.27),
     cbar_mode=None, axes_pad=(0.2, 0.2), share_all=True,
-    cbaroptions=['right', '3%', '0'], label_mode='1'):
+    cbaroptions=['right', '3%', '0%'], label_mode='1'):
     '''
     Generate grid to contain multiple figures. Just using ImageGrid of matplotlib but adjust default parameters for convenience.
      For more detail of the function, check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
@@ -953,6 +953,7 @@ def generate_grid(nrow, ncol, figsize=(11.69, 8.27),
      share_all (bool): Whether all axes share their x- and y-axis.
      cbarmode: If each, colorbar will be shown in each axis. If single, one common colorbar will be prepared. Default None.
     '''
+    from mpl_toolkits.axes_grid1 import ImageGrid
 
     fig = plt.figure(figsize=figsize)
 

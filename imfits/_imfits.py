@@ -146,7 +146,7 @@ class Imfits():
             if 'CD%i_%i'%(i+1,j+1) in header else 0.
             for j in range(naxis)] for i in range(naxis)])
         else:
-            print ('CAUTION\tchannelmap: No keyword PCi_j or CDi_j are found. No rotation is assumed.')
+            print ('CAUTION\tread_header: No keyword PCi_j or CDi_j are found. No rotation is assumed.')
             pc_ij = np.array([
                 [1. if i==j else 0. for j in range(naxis)]
                  for i in range(naxis)])
@@ -192,6 +192,14 @@ class Imfits():
         # frequency --> velocity
         keys_velocity = ['VRAD', 'VELO', 'VELO-LSR']
         if len(vaxis) > 1:
+            # into Hz
+            if 'CUNIT3' in self.header:
+                if self.header['CUNIT3'] == 'GHz':
+                    vaxis *= 1.e9
+                elif self.header['CUNIT3'] == 'MHz':
+                    vaxis *= 1.e6
+
+            # to velocity
             if velocity:
                 if label_i[2] in keys_velocity:
                     print ('The third axis is ', label_i[2])
@@ -577,14 +585,23 @@ class Imfits():
             print ('ERROR\tgetmoments: Data must have more than three axes to calculate moments.')
             return
         elif len(data.shape) == 3:
-            xaxis, yaxis, vaxis, = self.axes
             pass
         elif len(data.shape) == 4:
             data = data[i_stokes,:,:,:]
             xaxis, yaxis, vaxis, saxis = self.axes
         else:
             print ('ERROR\tgetmoments: Data have more than five axes. Cannot recognize.')
-            return
+            return 0
+
+        # axes
+        if len(self.axes) == 3:
+            xaxis, yaxis, vaxis = self.axes
+        elif len(self.axes) == 4:
+            xaxis, yaxis, vaxis, saxis = self.axes
+        else:
+            print ('ERROR\tgetmoments: Data shape is unexpected.')
+            print ('ERROR\tgetmoments: Data have more than five axes.')
+            return 0
         nx = self.nx
         ny = self.ny
         delv = self.delv
@@ -594,7 +611,7 @@ class Imfits():
             data  = data[index[0],:,:]
             vaxis = vaxis[index[0]]
 
-        if len(threshold):
+        if len(threshold) == 2:
             index = np.where( (data < threshold[0]) | (data > threshold[1]) )
             data[index] = 0.
 
@@ -609,15 +626,17 @@ class Imfits():
 
 
         # start
+        if delv < 0.:
+            delv *= -1
         mom0 = np.array([[np.sum(delv*data[:,j,i]) for i in range(nx)] for j in range(ny)])
-        w2   = np.array([[np.sum(delv*data[:,j,i]*delv*data[:,j,i])
-            for i in range(nx)] for j in range(ny)]) # Sum_i w_i^2
+        w2   = np.array([[np.sum(delv*data[:,j,i]*delv*data[:,j,i]) for i in range(nx)]
+            for j in range(ny)]) # Sum_i w_i^2
         ndata = np.array([
-            [len(np.nonzero(data[:,j,i])[0]) for i in range(nx)]
-             for j in range(ny)]) # number of data points used for calculations
+            [len(np.nonzero(data[:,j,i])[0]) for i in range(nx)] 
+            for j in range(ny)]) # number of data points used for calculations
 
 
-        if any([i == 0 for i in moment ]):
+        if 0 in moment:
             moments     = [mom0]
             #moments_err = []
         else:
