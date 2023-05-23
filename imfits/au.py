@@ -47,8 +47,9 @@ def getflux(image, rms=None, aptype='circle',
     # read data
     if inmode_data:
         _d = image.copy()
-        q = [dx, dy, beam, xx, yy]
-        if q.count(None) >= 1:
+        q = [ False if i is not None else True for i in
+        [dx, dy, beam, xx, yy]]
+        if any(q):
             print('ERROR\tgetflux: necessary parameters are missing.')
             print('ERROR\tgetflux: all subparameters must be provided\
                 when inmode_data = True.')
@@ -73,16 +74,26 @@ def getflux(image, rms=None, aptype='circle',
         print('ERROR\tgetflux: aptype must be circle or ellipse.')
         return 0
 
+    rrange = None
     if aptype == 'circle':
         if r is not None:
             rrange = np.where(rr <= r)
+        else:
+            print("CAUTION\tgetflux: r is not given though aptype='circle'.")
+            print("CAUTION\tgetflux: Entire map will be used for flux measurement.")
     elif aptype == 'ellipse':
         if [semimaj, semimin].count(None) == 0:
             # inverse rotation
             xxp = xx * np.cos(np.radians(pa)) - yy * np.sin(np.radians(pa))
             yyp = xx * np.sin(np.radians(pa)) + yy * np.cos(np.radians(pa))
             rrange = np.where( (yyp/semimaj)**2. + (xxp/semimin)**2. <= 1. )
+        else:
+            print("CAUTION\tgetflux: semimaj and/or semimin is not given though aptype='ellipse'.")
+            print("CAUTION\tgetflux: Entire map will be used for flux measurement.")
     elif aptype == 'none':
+        rrange = (~np.isnan(_d))
+
+    if rrange is None:
         rrange = (~np.isnan(_d))
 
     # pixel size in units of beam area
