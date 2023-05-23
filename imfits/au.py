@@ -22,8 +22,10 @@ pcTOcm = 3.09e18        # pc --> cm
 
 
 # Functions
-def getflux(image, r=None, rlim=None, inmode_data=False,
-    istokes = 0, ivelocity=0, dx=None, dy=None, beam=None, rms=None):
+def getflux(image, rms=None, aptype='circle',
+    r=None, semimaj = None, semimin=None, pa=None,
+    istokes = 0, ivelocity=0, 
+    inmode_data=False, dx=None, dy=None, beam=None, xx=None, yy=None, ):
     '''
     Get flux from an image.
 
@@ -31,8 +33,12 @@ def getflux(image, r=None, rlim=None, inmode_data=False,
     ----------
     image (object): Input image. Must be Imfits object,
      or ndarray when inmode_data=True.
-    r (ndarray): Radial coordinates of the input image (arcsec).
-    rlim (float): Radial range where flux is measured (arcsec).
+    rms (float): rms noise level.
+    aptype (str): Aperture type. Circule or ellipse are supported.
+    r (float): Radial range where flux is measured (arcsec).
+    semimaj (float): Semi-major axis of an elliptical aperture (arcsec).
+    semimin (float): Semi-minor axis of an elliptical aperture (arcsec).
+    pa (float): Position angle of an elliptical aperture measured from north to east (deg).
     inmode_data (bool): The input image will be treated as ndarray if True.
      Default False.
     istokes (int): Index for the stokes axis.
@@ -41,7 +47,7 @@ def getflux(image, r=None, rlim=None, inmode_data=False,
     # read data
     if inmode_data:
         _d = image.copy()
-        q = [dx, dy, beam]
+        q = [dx, dy, beam, xx, yy]
         if q.count(None) >= 1:
             print('ERROR\tgetflux: necessary parameters are missing.')
             print('ERROR\tgetflux: all subparameters must be provided\
@@ -50,24 +56,34 @@ def getflux(image, r=None, rlim=None, inmode_data=False,
         header = []
     else:
         _d = image.data.copy()
+        xx = image.xx * 3600. # deg --> arcsec
+        yy = image.yy * 3600. # deg --> arcsec
         dx, dy = np.abs(image.delx), np.abs(image.dely)
-        dx *= 3600. # to arcsec
-        dy *= 3600. # to arcsec
+        dx *= 3600. # deg --> arcsec
+        dy *= 3600. # deg --> arcsec
         beam = image.beam
-        r = np.sqrt(image.xx ** 2. + image.yy ** 2.) * 3600. # deg --> arcsec
         header = image.header
     # data shape
     _d = dropaxes(_d, istokes=istokes, ivelocity=ivelocity)
+    # radial coordinates
+    rr = np.sqrt(xx ** 2. + yy ** 2.)
 
     # radial range
-    if rlim is not None:
-        if r is None:
-            print('ERROR:\tgetflux: r is not given.')
-            print('ERROR:\tgetflux: Ignore the input rlim.')
-            print('ERROR:\tgetflux: Give radial coordinates to limit a radial range.')
-            rrange = (~np.isnan(_d))
-        else:
-            rrange = np.where(r <= rlim)
+    if aptype not in ['none', 'circle', 'ellipse']:
+        print('ERROR\tgetflux: aptype must be circle or ellipse.')
+        return 0
+
+    if aptype == 'circle':
+        if r is not None:
+            rrange = np.where(rr <= r)
+    elif aptype == 'ellipse':
+        if [semimaj, semimin].count(None) == 0:
+            # inverse rotation
+            xxp = xx * np.cos(np.radians(pa)) - yy * np.sin(np.radians(pa))
+            yyp = xx * np.sin(np.radians(pa)) + yy * np.cos(np.radians(pa))
+            rrange = np.where( (yyp/semimaj)**2. + (xxp/semimin)**2. <= 1. )
+    elif aptype == 'none':
+        rrange = (~np.isnan(_d))
 
     # pixel size in units of beam area
     beam_area = beam[0] * beam[1] * np.pi/(4.*np.log(2.)) # arcsec^2
