@@ -53,7 +53,7 @@ def IvTOTex(Iv, nu0, bmaj, bmin, sigI=None):
 
     Tex = (hp*nu0/kb)/(np.log(C1/Istr + 1.)) # no approximation [K]
 
-    if sigI:
+    if sigI is not None:
         # Error propagation
         dT_dI = (hp*nu0/kb) * C1 * (Istr**(-2.)) * (C1/Istr + 1.)**(-1.) \
         * (np.log(C1/Istr + 1.))**(-2) # derivative

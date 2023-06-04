@@ -22,6 +22,103 @@ pcTOcm = 3.09e18        # pc --> cm
 
 
 # Functions
+def getflux(image, rms=None, aptype='circle',
+    r=None, semimaj = None, semimin=None, pa=None,
+    istokes = 0, ivelocity=0, 
+    inmode_data=False, dx=None, dy=None, beam=None, xx=None, yy=None, ):
+    '''
+    Get flux from an image.
+
+    Parameters
+    ----------
+    image (object): Input image. Must be Imfits object,
+     or ndarray when inmode_data=True.
+    rms (float): rms noise level.
+    aptype (str): Aperture type. Circule or ellipse are supported.
+    r (float): Radial range where flux is measured (arcsec).
+    semimaj (float): Semi-major axis of an elliptical aperture (arcsec).
+    semimin (float): Semi-minor axis of an elliptical aperture (arcsec).
+    pa (float): Position angle of an elliptical aperture measured from north to east (deg).
+    inmode_data (bool): The input image will be treated as ndarray if True.
+     Default False.
+    istokes (int): Index for the stokes axis.
+    ivelocity (int): Index for the velocity axis.
+    '''
+    # read data
+    if inmode_data:
+        _d = image.copy()
+        q = [ False if i is not None else True for i in
+        [dx, dy, beam, xx, yy]]
+        if any(q):
+            print('ERROR\tgetflux: necessary parameters are missing.')
+            print('ERROR\tgetflux: all subparameters must be provided\
+                when inmode_data = True.')
+            return 0
+        header = []
+    else:
+        _d = image.data.copy()
+        xx = image.xx * 3600. # deg --> arcsec
+        yy = image.yy * 3600. # deg --> arcsec
+        dx, dy = np.abs(image.delx), np.abs(image.dely)
+        dx *= 3600. # deg --> arcsec
+        dy *= 3600. # deg --> arcsec
+        beam = image.beam
+        header = image.header
+    # data shape
+    _d = dropaxes(_d, istokes=istokes, ivelocity=ivelocity)
+    # radial coordinates
+    rr = np.sqrt(xx ** 2. + yy ** 2.)
+
+    # radial range
+    if aptype not in ['none', 'circle', 'ellipse']:
+        print('ERROR\tgetflux: aptype must be circle or ellipse.')
+        return 0
+
+    rrange = None
+    if aptype == 'circle':
+        if r is not None:
+            rrange = np.where(rr <= r)
+        else:
+            print("CAUTION\tgetflux: r is not given though aptype='circle'.")
+            print("CAUTION\tgetflux: Entire map will be used for flux measurement.")
+    elif aptype == 'ellipse':
+        if [semimaj, semimin].count(None) == 0:
+            # inverse rotation
+            xxp = xx * np.cos(np.radians(pa)) - yy * np.sin(np.radians(pa))
+            yyp = xx * np.sin(np.radians(pa)) + yy * np.cos(np.radians(pa))
+            rrange = np.where( (yyp/semimaj)**2. + (xxp/semimin)**2. <= 1. )
+        else:
+            print("CAUTION\tgetflux: semimaj and/or semimin is not given though aptype='ellipse'.")
+            print("CAUTION\tgetflux: Entire map will be used for flux measurement.")
+    elif aptype == 'none':
+        rrange = (~np.isnan(_d))
+
+    if rrange is None:
+        rrange = (~np.isnan(_d))
+
+    # pixel size in units of beam area
+    beam_area = beam[0] * beam[1] * np.pi/(4.*np.log(2.)) # arcsec^2
+    ds = dx*dy/beam_area # in units of beam area
+
+    # unit
+    if 'BUNIT' in header:
+        if header['BUNIT'] == 'Jy/beam':
+            pass
+        else:
+            print('CAUTION\tgetflux: The unit of intensity seems not Jy/beam.')
+            print('CAUTION\tgetflux: Currently only Jy/beam is supported.')
+            print('CAUTION\tgetflux: The calculated flux might be wrong.')
+
+    # get flux
+    flux = np.sum(_d[rrange] * ds)
+
+    if rms is not None:
+        e_flux = np.sum( np.sqrt(_d[rrange].size) * rms * ds)
+        return flux, e_flux
+    else:
+        return flux
+
+
 def get_1Dprofile(image, pa, average_side=False):
     '''
     Get one dimensional profile in a orientation at a position angule.
@@ -127,6 +224,96 @@ def imrotate(image, angle=0):
 
     return newimage
 
+
+
+def sky_deprojection(image, pa, inc,
+    inmode_data=False, xx=[], yy=[]):
+    '''
+    Deproject image from sky coordinates to local coordinates.
+
+    Parameters
+    ----------
+    '''
+    # Modules
+    from scipy.interpolate import griddata
+    import scipy.ndimage
+    
+    # function
+    def imrotate_2d(d, angle=0.):
+        # check whether the array includes nan
+        # nan --> 0 for interpolation
+        if np.isnan(d).any() == False:
+            pass
+        elif np.isnan(d).any() == True:
+            #print ('CAUTION\timrotate: Input image array includes nan. Replace nan with 0 for interpolation when rotate image.')
+            d[np.isnan(d)] = 0.
+
+        # rotate image
+        newimage = scipy.ndimage.rotate(d, -angle, reshape=False)
+        return newimage
+
+    
+    # Rotation angles
+    rotdeg  = 90. - pa # 180. - pa
+    rotrad  = np.radians(rotdeg)
+    incrad  = np.radians(inc)
+
+    # Data
+    if inmode_data:
+        data = image.copy()
+        naxis = len(data.shape)
+        if len(xx) * len(yy) == 0:
+            print('ERROR:\tsky_deprojection: xx and yy must be given when inmode_data=True.')
+            return 0
+    else:
+        data = image.data.copy()
+        xx = image.xx.copy()
+        yy = image.yy.copy()
+        dx = image.delx
+        dy = image.dely
+        naxis = image.naxis
+
+    # Rotation of the coordinate by pa,
+    #   in which xprime = xcos + ysin, and yprime = -xsin + ycos
+    # now, x axis is positive in the left hand direction (x axis is inversed).
+    # right hand (clockwise) rotation will be positive in angles.
+    xxp = xx*np.cos(rotrad) + yy*np.sin(rotrad)
+    yyp = (- xx*np.sin(rotrad) + yy*np.cos(rotrad))/np.cos(incrad)
+    dxp = xxp[0,1] - xxp[0,0]
+    dyp = yyp[1,0] - yyp[0,0]
+
+
+    # 2D --> 1D
+    xinp = xxp.reshape(xxp.size)
+    yinp = yyp.reshape(yyp.size)
+    print('Deprojecting image. Interpolation may take time.')
+    if naxis == 2:
+        data_reg = imrotate_2d(
+        griddata((xinp, yinp), data.reshape(data.size), 
+            (xx, yy), method='cubic',rescale=True), 
+        angle=-rotdeg)
+    elif naxis == 3:
+        data_reg = np.array([ imrotate_2d(
+            griddata((xinp, yinp), data[i,:,:].reshape(data[i,:,:].size), 
+                (xx, yy), method='cubic',rescale=True), 
+            angle=-rotdeg)
+            for i in range(data.shape[0])])
+    elif naxis == 4:
+        data_reg = np.array([[ imrotate_2d(
+            griddata((xinp, yinp), data[i, j,:,:].reshape(data[i, j,:,:].size), 
+                (xx, yy), method='cubic',rescale=True), 
+            angle=-rotdeg)
+            for j in range(data.shape[1]) ] for i in range(data.shape[0]) ])
+    else:
+        print('ERROR\tsky_deprojection: NAXIS must be <= 4.')
+        return 0
+
+    # scaling for flux conservation
+    data_reg *= np.cos(incrad)
+    #data_reg *= np.nansum(data[np.where(np.abs(yyp) <= np.nanmax(yy))])/np.nansum(data_reg)
+
+    return data_reg
+    
 
 # functions
 # 2D linear function
@@ -453,3 +640,28 @@ def estimate_noise(_d, nitr=1000, thr=2.3):
 
     print('Reach maximum number of iteration.')
     return rms
+
+
+def get_1Dresolution(bmaj, bmin, bpa, pa):
+    # an ellipse of the beam
+    # (x/bmin)**2 + (y/bmaj)**2 = 1
+    # y = x*tan(theta)
+    # --> solve to get resolution in the direction of pv cut with P.A.=pa
+    del_pa = pa - bpa
+    del_pa = del_pa*np.pi/180. # radian
+    term_sin = (np.sin(del_pa)/bmin)**2.
+    term_cos = (np.cos(del_pa)/bmaj)**2.
+    res_off  = np.sqrt(1./(term_sin + term_cos))
+    return res_off
+
+
+def dropaxes(data, istokes=0, ivelocity=0):
+    if len(data.shape) == 2:
+        return data
+    elif len(data.shape) == 3:
+        return data[ivelocity,:,:]
+    elif len(data.shape) == 4:
+        return data[istokes, ivelocity, :, :]
+    else:
+        print('ERROR\tdropaxes: Data must be 2 to 4 dimensions.')
+        return 0

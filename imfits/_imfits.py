@@ -146,7 +146,7 @@ class Imfits():
             if 'CD%i_%i'%(i+1,j+1) in header else 0.
             for j in range(naxis)] for i in range(naxis)])
         else:
-            print ('CAUTION\tchannelmap: No keyword PCi_j or CDi_j are found. No rotation is assumed.')
+            print ('CAUTION\tread_header: No keyword PCi_j or CDi_j are found. No rotation is assumed.')
             pc_ij = np.array([
                 [1. if i==j else 0. for j in range(naxis)]
                  for i in range(naxis)])
@@ -192,6 +192,14 @@ class Imfits():
         # frequency --> velocity
         keys_velocity = ['VRAD', 'VELO', 'VELO-LSR']
         if len(vaxis) > 1:
+            # into Hz
+            if 'CUNIT3' in self.header:
+                if self.header['CUNIT3'] == 'GHz':
+                    vaxis *= 1.e9
+                elif self.header['CUNIT3'] == 'MHz':
+                    vaxis *= 1.e6
+
+            # to velocity
             if velocity:
                 if label_i[2] in keys_velocity:
                     print ('The third axis is ', label_i[2])
@@ -416,7 +424,7 @@ class Imfits():
 
 
     def shift_coord_center(self, coord_center, 
-        regrid=False):
+        interpolate=False):
         '''
         Shift the coordinate center.
 
@@ -454,27 +462,32 @@ class Imfits():
         grid_new = cc_new.spherical_offsets_to(grid)
         xx_new, yy_new = grid_new
 
-        if regrid:
+        if interpolate:
             from scipy.interpolate import griddata
             # 2D --> 1D
             xinp     = xx_new.deg.reshape(xx_new.deg.size)
             yinp     = yy_new.deg.reshape(yy_new.deg.size)
-            print('Regridding... May take time...')
+            print('interpolating... May take time.')
             if self.naxis == 2:
                 data_reg = griddata((xinp, yinp), self.data.reshape(self.data.size), 
                 (self.xx, self.yy), method='cubic',rescale=True)
             elif self.naxis == 3:
-                data_reg = np.array([ griddata((xinp, yinp), data[i,:,:].reshape(self.data.size), 
+                data_reg = np.array([ griddata((xinp, yinp), self.data[i,:,:].reshape(self.data[i,:,:].size), 
                     (self.xx, self.yy), method='cubic',rescale=True) for i in range(self.nv) ])
             elif self.naxis == 4:
-                data_reg = np.array([[ griddata((xinp, yinp), data[j, i,:,:].reshape(self.data.size), 
+                data_reg = np.array([[ griddata((xinp, yinp), self.data[i, j,:,:].reshape(self.data[i, j,:,:].size), 
                     (self.xx, self.yy), method='cubic',rescale=True) 
-                for i in range(self.nv) ] for j in range(self.ns) ])
+                for j in range(self.nv) ] for i in range(self.ns) ])
+                #print(data_reg.shape, self.data.shape)
             else:
                 print('ERROR\tImfits: NAXIS must be <= 4.')
                 return 0
+            # Interpolated data
             self.cc = new_cent
             self.data = data_reg
+            # World coordinate
+            self.xx_wcs += self.xx - xx_new.deg
+            self.yy_wcs += self.yy - yy_new.deg
         else:
             xcent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
             ycent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
@@ -554,7 +567,7 @@ class Imfits():
 
 
     def getmoments(self, moment=[0], vrange=[], threshold=[],
-        outfits=True, outname=None, overwrite=False):
+        outfits=True, outname=None, overwrite=False, i_stokes=0):
         '''
         Calculate moment maps.
 
@@ -566,29 +579,39 @@ class Imfits():
         overwrite (bool): If overwrite an existing fits file or not.
         '''
 
+        # data check
         data  = self.data
-        xaxis, yaxis, vaxis, saxis = self.axes
-        nx = len(xaxis)
-        ny = len(yaxis)
-        delv = np.abs(vaxis[1] - vaxis[0])
-
         if len(data.shape) <= 2:
             print ('ERROR\tgetmoments: Data must have more than three axes to calculate moments.')
             return
         elif len(data.shape) == 3:
             pass
         elif len(data.shape) == 4:
-            data = data[0,:,:,:]
+            data = data[i_stokes,:,:,:]
+            xaxis, yaxis, vaxis, saxis = self.axes
         else:
             print ('ERROR\tgetmoments: Data have more than five axes. Cannot recognize.')
-            return
+            return 0
+
+        # axes
+        if len(self.axes) == 3:
+            xaxis, yaxis, vaxis = self.axes
+        elif len(self.axes) == 4:
+            xaxis, yaxis, vaxis, saxis = self.axes
+        else:
+            print ('ERROR\tgetmoments: Data shape is unexpected.')
+            print ('ERROR\tgetmoments: Data have more than five axes.')
+            return 0
+        nx = self.nx
+        ny = self.ny
+        delv = self.delv
 
         if len(vrange) == 2:
             index = np.where( (vaxis >= vrange[0]) & (vaxis <= vrange[1]))
             data  = data[index[0],:,:]
             vaxis = vaxis[index[0]]
 
-        if len(threshold):
+        if len(threshold) == 2:
             index = np.where( (data < threshold[0]) | (data > threshold[1]) )
             data[index] = 0.
 
@@ -603,15 +626,17 @@ class Imfits():
 
 
         # start
+        if delv < 0.:
+            delv *= -1
         mom0 = np.array([[np.sum(delv*data[:,j,i]) for i in range(nx)] for j in range(ny)])
-        w2   = np.array([[np.sum(delv*data[:,j,i]*delv*data[:,j,i])
-            for i in range(nx)] for j in range(ny)]) # Sum_i w_i^2
+        w2   = np.array([[np.sum(delv*data[:,j,i]*delv*data[:,j,i]) for i in range(nx)]
+            for j in range(ny)]) # Sum_i w_i^2
         ndata = np.array([
-            [len(np.nonzero(data[:,j,i])[0]) for i in range(nx)]
-             for j in range(ny)]) # number of data points used for calculations
+            [len(np.nonzero(data[:,j,i])[0]) for i in range(nx)] 
+            for j in range(ny)]) # number of data points used for calculations
 
 
-        if any([i == 0 for i in moment ]):
+        if 0 in moment:
             moments     = [mom0]
             #moments_err = []
         else:
@@ -684,6 +709,10 @@ class Imfits():
             #moments_err.append(sig_mom2)
             moments.append(mom2)
             moments.append(sig_mom2)
+
+        if 8 in moment:
+            mom8 = np.nanmax(data, axis=0)
+            moments.append(mom8)
 
         print ('Done.')
 
