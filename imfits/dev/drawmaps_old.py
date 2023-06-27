@@ -1,731 +1,18 @@
-# -*- coding: utf-8 -*-
-'''
-Made and developed by J.Sai.
-
-email: jn.insa.sai@gmail.com
-'''
-
-
-
-### Modules
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.gridspec import GridSpec
-from mpl_toolkits.axes_grid1 import ImageGrid, make_axes_locatable
-from astropy.io import fits
-from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
-import astropy.units as u
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-
-
-pltconfig_def = {
-'xtick.direction': 'in',
-'ytick.direction': 'in',
-'font.size': '14',
-}
-
-pltconfig_darkbg = {
-'tickcolor': 'white',
-'axiscolor': 'white',
-'txtcolor': 'white',
-'bcolor': 'white',
-'ccolor': 'white',
-'labelcolor': 'k'}
-
-figsize_def = (11.69, 8.27)
-
-
-
-class AstroCanvas():
-    '''
-    A Python class to maintain figures from fits images/cubes.
-
-    '''
-
-    def __init__(self, 
-        nrow_ncol: tuple = (0, 0),
-        axes_pad: tuple = (0.2, 0.2),
-        fig = None,
-        grid: bool = False,
-        cbar_mode: str = None, 
-        figsize: tuple = figsize_def,
-        pltconfig: dict = pltconfig_def) -> None:
-        '''
-        Initialize and set a canvas.
-
-        '''
-        # style
-        self.style(pltconfig)
-
-        # set figure
-        nrow, ncol = nrow_ncol
-        self.grid = grid
-        if fig is not None:
-            self.axes = fig.axes
-            self.naxes = len(self.axes)
-        else:
-            fig = plt.figure(figsize=figsize)
-            self.fig = fig
-            self.naxes = 0
-
-            # axes
-            if (np.array([nrow, ncol]) == 1).all():
-                self.axes = [fig.add_subplot(111)] # axes
-                self.naxes = len(self.axes)
-            elif (nrow >= 1) & (ncol >= 1):
-                if grid:
-                    self.add_grid(nrow, ncol, 
-                        cbar_mode = cbar_mode, axes_pad = axes_pad)
-                else:
-                    self.add_axes(nrow, ncol, 
-                        wspace=axes_pad[0], hspace=axes_pad[1])
-            else:
-                self.axes = []
-                self.naxes = 0
-                self.nrow = 0
-                self.ncol = 0
-
-
-    def reset_axes(self):
-        print('Axes exist in Canvas. Are you sure to reset them?')
-        while (ans == 'y') | (ans == 'n'):
-            print('Type [y/n].')
-            ans = input()
-
-            if ans == 'y':
-                self.axes = []
-                self.naxes = 0
-                self.nrow = 0
-                self.ncol = 0
-                return 1
-            elif ans == 'n':
-                return 0
-
-
-    def add_axis(self):
-        if self.naxes == 0:
-            self.axes = [fig.add_subplot(111)] # axes
-            self.naxes = len(self.axes)
-            self.nrow = 1
-            self.ncol = 1
-            return axes
-        else:
-            if self.reset_axes:
-                self.axes = [fig.add_subplot(111)] # axes
-                self.naxes = len(self.axes)
-                self.nrow = 1
-                self.ncol = 1
-                return axes
-            return None
-
-
-    def add_axes(self, nrow, ncol,
-        wspace=None, hspace=None):
-        import itertools
-        if self.naxes == 0:
-            gs = GridSpec(nrows=nrow, ncols=ncol, figure=self.fig,
-                wspace=wspace, hspace=hspace)
-            axes = []
-            for irow, icol in itertools.product(range(nrow), range(ncol)):
-                ax = self.fig.add_subplot(gs[irow, icol])
-                axes.append(ax)
-            self.axes = axes
-            self.naxes = len(self.axes)
-            self.nrow = nrow
-            self.ncol = ncol
-            return axes
-        else:
-            if self.reset_axes:
-                gs = GridSpec(nrows=nrow, ncols=ncol, figure=self.fig,
-                    wspace=wspace, hspace=hspace)
-                axes = []
-                for irow, icol in itertools.product(range(nrow), range(ncol)):
-                    ax = self.fig.add_subplot(gs[irow, icol])
-                    axes.append(ax)
-                self.axes = axes
-                self.naxes = len(self.axes)
-                self.nrow = nrow
-                self.ncol = ncol
-                return axes
-            return None
-
-
-
-    def style(self, config):
-        #for i in config.keys():
-        #mpl.rc(i, config[i])
-        self._config = config
-        plt.rcParams.update(config)
-
-
-    def add_grid(self, nrow, ncol, 
-        cbar_mode=None, axes_pad=(0., 0.), 
-        share_all=True, 
-        cbaroptions=['right', '2%', '0%'], 
-        label_mode='1'):
-        '''
-        Generate grid to contain multiple figures. Just using ImageGrid of matplotlib but adjust default parameters for convenience.
-         For more detail of the function, check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
-
-        Parameters
-        ----------
-         nrow(int): Number of rows
-         ncol(int): Number of columns
-         axes_pad (tuple or float): Padding between axes. In cases that tuple is given, it will be treated as (vertical, horizontal) padding.
-         share_all (bool): Whether all axes share their x- and y-axis.
-         cbarmode: If each, colorbar will be shown in each axis. If single, one common colorbar will be prepared. Default None.
-        '''
-
-        # Generate grid
-        cbar_loc, cbar_wd, cbar_pad = cbaroptions
-        grid = ImageGrid(self.fig, rect=111, nrows_ncols=(nrow,ncol),
-            axes_pad=axes_pad, share_all=share_all, cbar_mode=cbar_mode,
-            cbar_location=cbar_loc,cbar_size=cbar_wd, cbar_pad=cbar_pad,
-            label_mode=label_mode)
-        self.axes = grid
-        self.naxes = len(self.axes)
-        self.nrow = nrow
-        self.ncol = ncol
-        # to retrieve
-        self._gridkwargs = {
-        'axes_pad': axes_pad,
-        'share_all': share_all,
-        'cbar_mode': cbar_mode,
-        'cbar_location': cbar_loc,
-        'cbar_size': cbar_wd,
-        'cbar_pad': cbar_pad,
-        'label_mode': label_mode,
-        }
-        self.grid = True
-
-        return grid
-
-
-    def savefig(self, outname: str, 
-        ext : str = 'pdf', transparent: bool = True):
-        self.fig.savefig(outname + '.' + ext, transparent=transparent)
-
-
-    def intensitymap(self, image, imscale=[], 
-        color=True, cmap='PuBuGn', colorbar=True, cbarlabel=None, 
-        cbaroptions=np.array(['right','3%','0%']), 
-        vmin=None, vmax=None, color_norm=None,
-        contour=True, clevels=None, ccolor='k', clw=1, 
-        xticks=[], yticks=[], absolutecoords=False, scalebar=[],
-        plot_beam=True, bcolor='k',
-        ccross=True, prop_cross=[None, 1., 'k'], 
-        coord_center=None, aspect=1,
-        interpolation=None, exact_coord=False,
-        iaxis=0, saxis=0, vaxis=0, inmode=None, data=None, outname=None):
-        '''
-        Draw intensity map.
-
-        '''
-        # axis
-        ax = self.axes[iaxis]
-
-
-        # data
-        if inmode == 'data':
-            if data is None:
-                print ("ERROR\tintensitymap: data cannot be found.")
-                print ("ERROR\tintensitymap: data must be provided when inmode ='data'.")
-                print ("ERROR\tintensitymap: Use data of the input image.")
-                return 0
-            naxis = len(data.shape)
-        else:
-            data  = image.data.copy()
-            naxis = image.naxis
-
-
-        # check data axes
-        if len(data.shape) == 2:
-            pass
-        elif len(data.shape) == 3:
-            data = data[vaxis,:,:]
-        elif len(data.shape) == 4:
-            data = data[saxis, vaxis, :, :]
-        else:
-            print ('ERROR\tintensitymap: Input fits size is incorrect.\
-             Must have 2 to 4 axes. Check the shape of the input image.')
-            return
-
-
-        # unit
-        if cbarlabel is None:
-            cbarlabel = '(' + image.header['BUNIT'] + ')' if 'BUNIT' in image.header else ''
-
-
-        # beam
-        if image.beam is None:
-            plot_beam = False
-        else:
-            bmaj, bmin, bpa = image.beam
-
-
-        # center
-        if coord_center:
-            image.shift_coord_center(coord_center)
-
-
-        # coordinate style
-        if absolutecoords:
-            print ('WARNING\tintensitymap: Abusolute coordinate option is still in development.')
-            print ('WARNING\tintensitymap: May result in a bad-looking plot.')
-            xlabel = image.label_i[0]
-            ylabel = image.label_i[1]
-            cc    = image.cc
-            xaxis = xx_wcs[image.nx//2,:] # not exactly though
-            yaxis = yy_wcs[:, image.ny//2]
-        else:
-            cc    = image.cc
-            xaxis = image.xaxis*3600.
-            yaxis = image.yaxis*3600.
-            xlabel = 'RA offset (arcsec)'
-            ylabel = 'DEC offset (arcsec)'
-
-
-        # trim data for plot
-        if len(imscale) == 0:
-            xmin, xmax = xaxis[[0,-1]]
-            ymin, ymax = yaxis[[0,-1]]
-            extent = (xmin-0.5*image.delx, xmax+0.5*image.delx, 
-                ymin-0.5*image.dely, ymax+0.5*image.dely)
-            figxmin, figxmax, figymin, figymax = extent
-            data, xaxis, yaxis = trim_data(data, xaxis, yaxis, [],
-             [figxmax, figxmin], [figymin, figymax], [])
-        elif len(imscale) == 4:
-            figxmax, figxmin, figymin, figymax = imscale
-            data, xaxis, yaxis = trim_data(data, xaxis, yaxis, [],
-             [figxmax, figxmin], [figymin, figymax], [])
-            xmin, xmax = xaxis[[0,-1]]
-            ymin, ymax = yaxis[[0,-1]]
-            extent = (xmin-0.5*image.delx, xmax+0.5*image.delx, 
-                ymin-0.5*image.dely, ymax+0.5*image.dely)
-        else:
-            print ('ERROR\tintensitymap: Input imscale is wrong.\
-             Must be [xmin, xmax, ymin, ymax]')
-
-
-        # meshgrid if needed
-        if exact_coord: xx, yy  = np.meshgrid(xaxis, yaxis)
-
-
-        # set colorscale
-        if vmax is None: vmax = np.nanmax(data)
-
-
-        # color scale
-        norm = color_normalization(color_norm, vmin, vmax)
-
-
-        # color map
-        if color:
-            if exact_coord:
-                imcolor = ax.pcolor(xx, yy, data, cmap=cmap, 
-                    norm=norm, shading='auto', rasterized=True)
-            else:
-                imcolor = ax.imshow(data, cmap=cmap, origin='lower', 
-                    extent=extent, norm=norm, interpolation=interpolation, 
-                    rasterized=True)
-
-            # color bar
-            if colorbar: self.add_colorbar(imcolor, iaxis=iaxis,
-                cbarlabel=cbarlabel, cbaroptions=cbaroptions)
-
-        # contour map
-        if contour:
-            if exact_coord:
-                imcont = ax.contour(xx, yy, data, colors=ccolor,
-                    levels=clevels, linewidths=clw)
-            else:
-                imcont = ax.contour(data, colors=ccolor, 
-                    origin='lower', levels=clevels,
-                    linewidths=clw, extent=extent)
-
-
-        # set axes
-        ax.set_xlim(figxmin,figxmax)
-        ax.set_ylim(figymin,figymax)
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        if len(xticks) != 0:
-            ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks)
-        if  len(yticks) != 0:
-            ax.set_yticks(yticks)
-            ax.set_yticklabels(yticks)
-        ax.set_aspect(aspect)
-        ax.tick_params(which='both', direction='in', bottom=True, top=True,
-            left=True, right=True, pad=9)
-
-
-        # plot beam size
-        if plot_beam: add_beam(ax, bmaj, bmin, bpa, bcolor)
-
-
-        # central star position
-        if ccross:
-            ll, lw, cl = prop_cross
-            add_cross(ax, loc=(0,0), length=ll, 
-                width=lw, color=cl, zorder=10.)
-
-
-        # scale bar
-        if len(scalebar): add_scalebar(ax, scalebar)
-
-
-        # save fig
-        if outname: self.savefig(outname, transparent = transparent)
-
-        return ax
-
-
-    # Channel maps
-    def channelmaps(self, image, imscale=[], data=None,
-        color=True, cmap='PuBuGn', outname=None,
-        vmin=None, vmax=None, contour=True, clevels=[], ccolor='k',
-        nrow=5, ncol=5, velmin=None, velmax=None, nskip=1, clw=0.5, color_norm=None,
-        xticks=[], yticks=[], vsys=None, scalebar=[],
-        ccross=True, prop_cross=[None, 1., 'k'], bcolor='k', 
-        cbarticks=None, coord_center=None, sbar_vertical=False,
-        vlabel_on=True, cbarlabel='',
-        plotall=False, absolutecoords=False, plot_beam=True, txtcolor='k'):
-        '''
-        Draw channel maps.
-
-        Parameters
-        ----------
-        image: Input image. Must be Imfits object.
-        imscale: scale to be shown (arcsec). It must be given as [xmin, xmax, ymin, ymax].
-        color (bool): If True, images will be shown in colorscale. Default is False.
-            cmap: color of the colorscale.
-            vmin: Minimum value of colorscale. Default is None.
-            vmax: Maximum value of colorscale. Default is the maximum value of the self cube.
-            logscale (bool): If True, the color will be shown in logscale.
-        contour (bool): If True, images will be shown with contour. Default is True.
-            clevels (ndarray): Contour levels. Input will be treated as absolute values.
-            ccolor: color of contour.
-        nrow, ncol: the number of row and column of the channel map.
-        relativecoords (bool): If True, the channel map will be produced in relative coordinate. Abusolute coordinate mode is (probably) coming soon.
-        velmin, velmax: Minimum and maximum velocity to be shown.
-        vsys: Systemic velicity [km/s]. If no input value, velocities will be described in LSRK.
-        csize: Caracter size. Default is 9.
-        ccross: If True, a central star or the center of an self will be shown as a cross.
-        prop_cross: Detailed setting for the cross showing stellar position.
-         np.array(['length','width','color']) or np.array(['length','width','color', 'coordinates']).
-        logscale (bool): If True, the color scale will be in log scale.
-        coord_center (str): Put an coordinate for the map center. The shape must be '00h00m00.00s 00d00m00.00s', or
-         'hh:mm:ss.ss dd:mm:ss.ss'. RA and DEC must be separated by space.
-        locsym: Removed. A factor to decide locations of symbols (beam and velocity label). It must be 0 - 1.
-        tickcolor, axiscolor, labelcolor, txtcolor: Colors for the maps.
-        scalebar (array): If it is given, scalebar will be drawn. It must be given as [barx, bary, bar length, textx, texty, text].
-                           Barx, bary, textx, and texty are locations of a scalebar and a text in arcsec.
-        nskip: the number of channel skipped
-        '''
-
-        # grid
-        if self.naxes == 0:
-            self.add_grid(nrow, ncol)
-
-        print('Draw channel maps...')
-
-
-        # data
-        if data is not None:
-            naxis = len(data.shape)
-        else:
-            data  = image.data.copy()
-            header = image.header.copy()
-            naxis = image.naxis
-
-        # check number of image axes
-        if naxis == 3:
-            pass
-        elif naxis == 4:
-            data = data[0, :, :, :]
-        else:
-            print ('ERROR\tchannelmaps: NAXIS of fits must be 3 or 4.')
-            return 0
-
-        # coordinate center
-        if coord_center:
-            image.shift_coord_center(coord_center)
-
-        # Coordinates
-        if absolutecoords:
-            print ('WARNING: Abusolute coordinates are still in development.')
-            xlabel = image.label_i[0]
-            ylabel = image.label_i[1]
-            cc = image.cc
-            xaxis = xx_wcs[image.nx//2,:] # not exactly though
-            yaxis = yy_wcs[:, image.ny//2]
-        else:
-            #xx = self.xx*3600.
-            #yy = self.yy*3600.
-            cc = image.cc
-            xaxis = image.xaxis*3600.
-            yaxis = image.yaxis*3600.
-            xlabel = 'RA offset (arcsec)'
-            ylabel = 'DEC offset (arcsec)'
-
-        # velocity axis
-        vaxis = image.vaxis.copy()
-        delv  = image.delv
-        if delv < 0:
-            delv  = - delv
-            vaxis = vaxis[::-1]
-            data  = data[::-1,:,:]
-
-        # Relative velocity
-        if vsys:
-            vaxis = vaxis - vsys
-
-        # velocity range
-        if (velmin is not None) & (velmax is not None):
-            vlim = [velmin, velmax]
-        elif velmin:
-            vlim = [velmin, np.nanmax(vaxis)+1.]
-        elif velmax:
-            vlim = [np.nanmin(vaxis)-1., velmax]
-        else:
-            vlim = []
-
-        # trim data for plot
-        if len(imscale) == 0:
-            xmin, xmax = xaxis[[0,-1]]
-            ymin, ymax = yaxis[[0,-1]]
-            extent = (xmin-0.5*image.delx, xmax+0.5*image.delx, 
-                ymin-0.5*image.dely, ymax+0.5*image.dely)
-            figxmin, figxmax, figymin, figymax = extent
-            d_plt, x_plt, y_plt, v_plt = trim_data(data, xaxis, yaxis, vaxis,
-             [figxmax, figxmin], [figymin, figymax], vlim)
-        elif len(imscale) == 4:
-            figxmax, figxmin, figymin, figymax = imscale
-            d_plt, x_plt, y_plt, v_plt = trim_data(data, xaxis, yaxis, vaxis,
-             [figxmax, figxmin], [figymin, figymax], vlim)
-            extent = (x_plt[0]-0.5*image.delx, x_plt[-1]+0.5*image.delx,
-             y_plt[0]-0.5*image.dely, y_plt[-1]+0.5*image.dely)
-        else:
-            print ('ERROR\tchannelmaps: Input imscale is wrong.\
-             Must be [xmin, xmax, ymin, ymax]')
-            d_plt = data
-            v_plt = vaxis
-        nv_plt = len(v_plt)
-        xx, yy = np.meshgrid(x_plt, y_plt)
-
-        if nskip:
-            d_plt  = d_plt[::nskip,:,:]
-            v_plt  = v_plt[::nskip]
-            nv_plt = len(v_plt)
-
-        # Set colorscale
-        vmax = vmax if vmax is not None else np.nanmax(data)
-        vmin = vmin if vmin is not None else np.nanmin(data)
-
-        # color scale
-        norm = color_normalization(color_norm, vmin, vmax)
-
-        # default contour
-        if len(clevels) == 0:
-            clevels = np.array([0.2, 0.4, 0.6, 0.8])*np.nanmax(d_plt)
-
-        # Counter
-        nrow, ncol = self.nrow, self.ncol
-        gridimax = nrow * ncol - 1
-        gridi    = 0
-        imap     = 1
-        ax       = None
-
-        # draw channel maps
-        for ichan in range(nv_plt):
-            # maximum grid
-            if gridi > gridimax:
-                break
-
-            # Select channel
-            Sv = d_plt[ichan,:,:]
-
-            # velocity at nchan
-            v_i = v_plt[ichan]
-
-            # Axis
-            ax = self.axes[gridi]
-            #print ('Channel ', '%s'%ichan, ', velocity: ', '%4.2f'%v_i, ' km/s')
-
-            # color and/or contour plots
-            if color:
-                imcolor = ax.imshow(Sv, 
-                    cmap=cmap, origin='lower', 
-                    extent=extent, norm=norm, 
-                    rasterized=True)
-            if contour:
-                imcont  = ax.contour(Sv, colors=ccolor, 
-                    origin='lower',extent=extent, 
-                    levels=clevels, linewidths=clw)
-
-            # set axes
-            ax.set_xlim(figxmin,figxmax)
-            ax.set_ylim(figymin,figymax)
-            if len(xticks) != 0:
-                ax.set_xticks(xticks)
-
-            if len(yticks) != 0:
-                ax.set_yticks(yticks)
-
-            ax.set_aspect(1)
-            ax.tick_params(which='both', direction='in',bottom=True,
-             top=True, left=True, right=True, pad=9,)
-
-            # Velocity label
-            if vlabel_on:
-                vlabel = '%3.2f'%v_i
-                ax.text(0.1, 0.9, vlabel, color=txtcolor,
-                 horizontalalignment='left', verticalalignment='top',
-                  transform=ax.transAxes)
-
-            # Central star position
-            if ccross:
-                ll, lw, cl = prop_cross
-                add_cross(ax, loc=(0,0), length=ll, 
-                    width=lw, color=cl, zorder=10.)
-
-            # counter
-            gridi += 1
-
-            # break or continue?
-            if gridi > gridimax:
-                if plotall:
-                    # Plot beam
-                    if (plot_beam == True) & (image.beam is not None):
-                        bmaj, bmin, bpa = image.beam
-                        add_beam(self.axes[(nrow-1)*ncol], bmaj, bmin, bpa, bcolor, loc='bottom left')
-                    # scalebar
-                    if len(scalebar) != 0:
-                        add_scalebar(grid[(nrow-1)*ncol], scalebar)
-                    # colorbar
-                    if color and ax:
-                        cax, cbar = self.add_colorbar(imcolor, cbarlabel,)
-                    #label
-                    self.axes[(nrow-1)*ncol].set_xlabel(xlabel)
-                    self.axes[(nrow-1)*ncol].set_ylabel(ylabel)
-                    # remove blank pannel
-                    if gridi != gridimax+1 and gridi != 0:
-                        while gridi != gridimax+1:
-                            #print gridi
-                            self.axes[gridi].axis('off')
-                            gridi = gridi+1
-                    # save
-                    if outname is None:
-                        print('WARNING\tchannelmaps: outname is not provided.')
-                        print('WARNING\tchannelmaps: output files are written out when plotall=True.')
-                        print('WARNING\tchannelmaps: header name will be channelmaps.')
-                        outname = 'channelmaps'
-                    self.savefig(outname + '_i%02i'%imap, )
-                    # reset
-                    self.fig.clf() # clear figure
-                    self.style(self._config) # reset style
-                    self.axes = ImageGrid(self.fig, rect=111,
-                        nrows_ncols=(self.nrow, self.ncol), 
-                        **self._gridkwargs) # retrieve grid
-                    gridi = 0
-                    imap  += 1
-                    #break
-                else:
-                    break
-
-        # On the bottom-left corner pannel
-        # Labels
-        self.axes[(nrow-1)*ncol].set_xlabel(xlabel)
-        self.axes[(nrow-1)*ncol].set_ylabel(ylabel)
-        # Plot beam
-        if (plot_beam == True) & (image.beam is not None):
-            bmaj, bmin, bpa = image.beam
-            add_beam(self.axes[(nrow-1)*ncol], bmaj, bmin, bpa, bcolor, loc='bottom left')
-        # scalebar
-        if len(scalebar) != 0:
-            add_scalebar(grid[(nrow-1)*ncol], scalebar)
-        # colorbar
-        if color and ax:
-            cax, cbar = self.add_colorbar(imcolor, cbarlabel,)
-        # remove blank pannel
-        if gridi != gridimax+1 and gridi != 0:
-            while gridi != gridimax+1:
-                #print gridi
-                self.axes[gridi].axis('off')
-                gridi = gridi+1
-
-        return self.axes
-
-
-    def add_colorbar(self, 
-        cim = None, iaxis = None,
-        cbarlabel: str='', 
-        cbaroptions: list = ['right', '3%', '0%'],
-        ticks: list = None,
-        tickcolor: str = 'k', 
-        axiscolor: str = 'k', 
-        labelcolor: str = 'k'):
-        # parameter
-        orientations = {
-        'right': 'vertical',
-        'left': 'vertical',
-        'top': 'horizontal',
-        'bottom': 'horizontal'}
-
-        # color scale
-        if cim is not None:
-            pass
-        else:
-            try:
-                cim = self.axes[0].images[0] # assume the first one is a color map.
-            except:
-                print('ERROR\tadd_colorbar: cannot find a color map.')
-                return 0
-
-        # axis or grid
-        if (self.grid == False):
-            # to axis
-            # setting for a color bar
-            if len(cbaroptions) == 3:
-                cbar_loc, cbar_wd, cbar_pad = cbaroptions
-            elif len(cbaroptions) == 4:
-                cbar_loc, cbar_wd, cbar_pad, cbarlabel = cbaroptions
-            else:
-                print('WARNING\tadd_colorbar: cbaroptions must have three or four elements. \
-                Input is ignored.')
-            # divide axis
-            cbar_loc, cbar_wd, cbar_pad = cbaroptions
-            divider = make_axes_locatable(self.axes[iaxis])
-            cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
-            # add a color bar
-            cbar = plt.colorbar(cim, cax=cax, ticks=ticks, 
-                orientation=orientations[cbar_loc], ticklocation=cbar_loc)
-            cbar.set_label(cbarlabel)
-        else:
-            # to grid
-            cax  = self.axes.cbar_axes[iaxis]
-            cbar = plt.colorbar(cim, cax=cax) # ticks=cbarticks
-            cax.toggle_label(True)
-
-            if cbarlabel:
-                cbar.ax.set_ylabel(cbarlabel, color=labelcolor) # label
-
-        #cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, color=tickcolor,)
-        return cax, cbar
+from imfits import Imfits
 
 
 
 # intensity map
 def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
-    color=True, cmap='Blues', colorbar=True, cbarlabel='', cbaroptions=np.array(['right','3%','0%']), vmin=None,vmax=None,
+    color=True, cmap='Blues', colorbar=True, cbaroptions=np.array(['right','4%','0%','Jy/beam']), vmin=None,vmax=None,
     contour=True, clevels=None, ccolor='k', clw=1,
     data=None, axis=0, xticks=[], yticks=[], relativecoords=True, csize=18, scalebar=[],
     cstar=True, prop_star=[], color_norm=None, bcolor='k',figsize=(11.69,8.27),
-    coord_center=None, plot_beam = True, aspect=1,
+    coord_center=None, plot_beam = True,
     interpolation=None, noreg=True, inmode=None, exact_coord=False,
     tickcolor='k',axiscolor='k',labelcolor='k',darkbg=False):
     '''
@@ -834,7 +121,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
         transparent=True
 
     # setting output file name & format
-    #outname = outname if outname else self.file.replace('.fits', '_intensitymap')
+    outname = outname if outname else self.file.replace('.fits', '_intensitymap')
 
     if (outformat == formatlist).any():
         outname = outname + '.' + outformat
@@ -952,7 +239,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
             imcolor = ax.imshow(data, cmap=cmap, origin='lower', extent=extent, norm=norm, interpolation=interpolation, rasterized=True)
 
         # color bar
-        if colorbar: add_colorbar_toaxis(ax, imcolor, cbaroptions, cbarlabel=cbarlabel,
+        if colorbar: add_colorbar_toaxis(ax, imcolor, cbaroptions,
             fontsize=csize, tickcolor=tickcolor, labelcolor=labelcolor)
 
     # contour map
@@ -978,7 +265,7 @@ def intensitymap(self, ax=None, outname=None, imscale=[], outformat='pdf',
         ax.set_yticks(yticks)
         ax.set_yticklabels(yticks)
 
-    ax.set_aspect(aspect)
+    ax.set_aspect(1)
     ax.tick_params(which='both', direction='in',bottom=True, top=True,
         left=True, right=True, labelsize=csize, color=tickcolor,
         labelcolor=labelcolor, pad=9)
@@ -1041,7 +328,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
     cstar=True, prop_star=[], tickcolor='k', axiscolor='k', darkbg=False,
     labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
     cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
-    cbaroptions=np.array(['right','3%','0%']), inmode='fits', vlabel_on=True,
+    cbaroptions=np.array(['right','5%','0%']), inmode='fits', vlabel_on=True,
     plotall=False):
     '''
     Make channel maps from a fits file.
@@ -1731,29 +1018,6 @@ def trim_data(data, x, y, v,
         return -1
 
 
-def color_normalization(color_norm, vmin, vmax):
-    # color scale
-    if type(color_norm) == str:
-        if color_norm == 'log':
-            norm = mpl.colors.LogNorm(vmin=vmin,vmax=vmax)
-    elif type(color_norm) == tuple:
-        if hasattr(color_norm[0], '__call__'):
-            norm = mpl.colors.FuncNorm(color_norm, vmin=vmin, vmax=vmax)
-        elif color_norm[0].replace(' ','').lower() == 'asinhstretch':
-            a = float(color_norm[1])
-            def _forward(x,):
-                return np.arcsinh(x/a)/np.arcsinh(1./a)
-            def _inverse(x,):
-                return a*np.sinh(x*(np.arcsinh(1/a)))
-            norm = mpl.colors.FuncNorm((_forward, _inverse), vmin=vmin, vmax=vmax)
-        else:
-            print ('ERROR\tcolor_normalization: color_norm must be strings or tuple of functions.')
-    else:
-        norm = mpl.colors.Normalize(vmin=vmin,vmax=vmax)
-
-    return norm
-
-
 def index_between(t, tlim, mode='all'):
     if not (len(tlim) == 2):
         if mode=='all':
@@ -1865,9 +1129,7 @@ def add_colorbar_togrid(cim, grid, cbarlabel: str='',
         cbar.ax.set_ylabel(cbarlabel,color=labelcolor) # label
     return cbar
 
-
-def add_colorbar_toaxis(ax, cim=None, 
-    cbaroptions: list = [], cbarlabel = '',
+def add_colorbar_toaxis(ax, cim=None, cbaroptions: list = [],
     ticks: list = None, fontsize: float = None, 
     tickcolor: str = 'k', labelcolor: str = 'k'):
     '''
@@ -1899,16 +1161,13 @@ def add_colorbar_toaxis(ax, cim=None,
 
     # setting for a color bar
     if len(cbaroptions) == 0:
-        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', cbarlabel]
-    elif len(cbaroptions) == 3: 
-        cbar_loc, cbar_wd, cbar_pad = cbaroptions
-        cbar_lbl = cbarlabel
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', '']
     elif len(cbaroptions) == 4:
         cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
     else:
         print('WARNING\tadd_colorbar_toaxis: cbaroptions must have 4 elements. \
             Input is ignored.')
-        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', cbarlabel]
+        cbar_loc, cbar_wd, cbar_pad, cbar_lbl = ['right', '3%', '0%', '']
     divider = make_axes_locatable(ax)
     cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
 
@@ -1919,7 +1178,6 @@ def add_colorbar_toaxis(ax, cim=None,
     cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, 
         color=tickcolor,)
     return cax, cbar
-
 
 def add_scalebar(ax, scalebar: list, orientation='horizontal',
     loc: str = 'bottom right', barcolor: str = 'k', fontsize: float = 11.,

@@ -15,6 +15,7 @@ from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 
 ### Constants (in cgs)
@@ -43,6 +44,7 @@ class Imfits():
         else:
             self.read_header()
             self.get_coordinates()
+            self.get_mapextent()
             #self.fits_deprojection(relativecoords=relativecoords)
 
         self.ifpv = pv
@@ -580,7 +582,7 @@ class Imfits():
         '''
 
         # data check
-        data  = self.data
+        data  = self.data.copy()
         if len(data.shape) <= 2:
             print ('ERROR\tgetmoments: Data must have more than three axes to calculate moments.')
             return
@@ -628,13 +630,9 @@ class Imfits():
         # start
         if delv < 0.:
             delv *= -1
-        mom0 = np.array([[np.sum(delv*data[:,j,i]) for i in range(nx)] for j in range(ny)])
-        w2   = np.array([[np.sum(delv*data[:,j,i]*delv*data[:,j,i]) for i in range(nx)]
-            for j in range(ny)]) # Sum_i w_i^2
-        ndata = np.array([
-            [len(np.nonzero(data[:,j,i])[0]) for i in range(nx)] 
-            for j in range(ny)]) # number of data points used for calculations
-
+        mom0 = np.sum(delv*data, axis=0)
+        w2 = np.sum(delv * data * delv * data, axis=0) # Sum_i w_i^2
+        ndata = np.count_nonzero(data, axis=0)
 
         if 0 in moment:
             moments     = [mom0]
@@ -645,15 +643,15 @@ class Imfits():
 
         # moment 1
         if any([i >= 1 for i in moment ]):
-            mom1 = np.array([[np.sum((data[:,j,i]*vaxis*delv))
-                for i in range(nx)]
-                for j in range(ny)])/mom0
+            vtile = np.tile(vaxis, (nx, ny, 1))
+            vtile = np.transpose(vtile, (2, 1, 0))
+            mom1 = np.sum(data * vtile * delv, axis=0)/mom0
 
 
             # calculate error
-            sig_v2   = np.array([[np.sum(
-                delv*((mom1[j,i] - vaxis[np.where(data[:,j,i] > 0)])**2))
-            for i in range(nx)] for j in range(ny)])
+            vmean = np.tile(mom1, (nchan, 1, 1))
+            vcount = np.where(data > 0., vtile, np.nan)
+            sig_v2 = np.nansum(delv * (vmean - vcount)**2., axis=0)
 
             # Eq. (2.3) of Belloche 2013
             # approximated solution
@@ -694,17 +692,16 @@ class Imfits():
 
 
         if any([i == 2 for i in moment]):
-            mom2 = np.sqrt(np.array([[np.sum((data[:,j,i]*delv*(vaxis - mom1[j,i])**2.))
-            for i in range(nx)]
-            for j in range(ny)])/mom0)
+            vtile = np.tile(vaxis, (nx, ny, 1))
+            vtile = np.transpose(vtile, (2, 1, 0))
+            vmean = np.tile(mom1, (nchan, 1, 1))
+            vcount = np.where(data > 0., vtile, np.nan)
+            mom2 = np.sqrt(np.nansum(data*delv*(vcount - vmean)**2., axis=0)/mom0)
 
-            sig_mom2 = np.sqrt(np.array([[
-                2./(np.count_nonzero(data[:,j,i]) - 1.) \
-                * (mom0[j,i]*mom2[j,i]*mom2[j,i]/(mom0[j,i] - (w2[j,i]/mom0[j,i])))**2.
-                if (np.count_nonzero(data[:,j,i]) - 1.) > 0
-                else 0.
-                for i in range(nx)]
-                for j in range(ny)]))
+            sig_mom2_sq = 2./(np.count_nonzero(data, axis=0) - 1.) \
+                * (mom0 * mom2 * mom2/(mom0 - (w2/mom0)))**2.
+            sig_mom2_sq[sig_mom2_sq < 0.] = 0.
+            sig_mom2 = np.sqrt(sig_mom2_sq)
 
             #moments_err.append(sig_mom2)
             moments.append(mom2)
@@ -742,7 +739,7 @@ class Imfits():
             hdout['CDELT3'] = 1.
             hdout['CUNIT3'] = '       '
 
-            hdout['HISTORY'] = 'Produced by getmoments in Imfits.'
+            hdout['HISTORY'] = 'Produced by getmoments of Imfits.'
             hdout['HISTORY'] = 'Moments: '+' '.join([str(moment[i]) for i in range(len(moment))])
 
             if outname:
