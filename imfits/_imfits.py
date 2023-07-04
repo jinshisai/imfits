@@ -30,27 +30,25 @@ class Imfits():
     Read a fits file, store the information, and draw maps.
     '''
 
-    def __init__(self, infile, pv=False, frame=None, equinox='J2000'):
+    def __init__(self, infile, pv=False, 
+        frame=None, equinox='J2000', axesorder=()):
         self.file = infile
         self.data, self.header = fits.getdata(infile, header=True)
 
         self.frame = frame if frame else None
-
         if equinox:
             self.equinox = equinox
 
-        if pv:
-            self.read_pvfits()
-        else:
-            self.read_header()
-            self.get_coordinates()
-            self.get_mapextent()
-            #self.fits_deprojection(relativecoords=relativecoords)
-
         self.ifpv = pv
+        if pv:
+            self.read_pvfits(axesorder=axesorder)
+        else:
+            self.read_header(axesorder=axesorder)
+            self.get_coordinates()
+        self.get_mapextent()
 
 
-    def read_header(self, velocity=True):
+    def read_header(self, velocity=True, axesorder=()):
         '''
         Get axes of a fits file. x axis and y axis will be in intermediate coordinates.
 
@@ -76,12 +74,15 @@ class Imfits():
         label_i  = np.array([header['CTYPE'+str(i+1)] for i in range(naxis)])
         refpix_i = np.array([int(header['CRPIX'+str(i+1)]) for i in range(naxis)])
         refval_i = np.array([header['CRVAL'+str(i+1)] for i in range(naxis)]) # degree
-        if 'CDELT1' in header:
-            del_i = np.array([header['CDELT'+str(i+1)] for i in range(naxis)]) # degree
         self.naxis_i  = naxis_i
         self.label_i  = label_i
         self.refpix_i = refpix_i
         self.refval_i = refval_i
+        if 'CDELT1' in header:
+            del_i = np.array([header['CDELT'+str(i+1)] for i in range(naxis)]) # degree
+            self.del_i = del_i
+        else:
+            self.del_i = []
 
         # beam size (degree)
         if 'BMAJ' in header:
@@ -128,7 +129,8 @@ class Imfits():
 
         # read projection type
         try:
-            projection = label_i[0].replace('RA---','')
+            ra_indx = [i for i in range(self.naxis) if 'RA' in self.label_i[i]][0]
+            projection = label_i[ra_indx].replace('RA---','')
         except:
             print ('Cannot read information about projection from fits file.')
             print ('Set projection SIN for radio interferometric data.')
@@ -158,32 +160,45 @@ class Imfits():
         # axes
         axes = np.array([np.dot(pc_ij, (i+1 - refpix_i))\
          for i in range(np.max(naxis_i))]).T      # +1 in i+1 comes from 0 start index in python
+        self._axes = axes
+        # reorder if neccessary
+        if len(axesorder) == 0:
+            # auto re-ordering
+            axes_keys = {
+            'RA---'+self.projection: 0, 
+            'DEC--'+self.projection: 1, 
+            'FREQ': 2, 
+            'STOKES': 3,}
+            # if OFFSET, FREQ, STOKES axes are found
+            if all([i in axes_keys.keys() for i in self.label_i]):
+                self.reorder_axes(tuple([axes_keys[i] for i in self.label_i]))
+        elif len(axesorder): self.reorder_axes(axesorder)
 
 
         # x & y (RA & DEC)
         xaxis = axes[0]
-        xaxis = xaxis[:naxis_i[0]]                # offset, relative
+        xaxis = xaxis[:self.naxis_i[0]]                # offset, relative
         yaxis = axes[1]
-        yaxis = yaxis[:naxis_i[1]]                # offset, relative
+        yaxis = yaxis[:self.naxis_i[1]]                # offset, relative
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.delx = xaxis[1] - xaxis[0]
         self.dely = yaxis[1] - yaxis[0]
-        self.nx = naxis_i[0]
-        self.ny = naxis_i[1]
+        self.nx = self.naxis_i[0]
+        self.ny = self.naxis_i[1]
 
         # frequency & stokes
         if naxis >= 3:
             # frequency
             vaxis = axes[2]
-            vaxis = vaxis[:naxis_i[2]] + refval_i[2]  # frequency, absolute
-            self.nv = naxis_i[2]
+            vaxis = vaxis[:self.naxis_i[2]] + self.refval_i[2]  # frequency, absolute
+            self.nv = self.naxis_i[2]
 
             if naxis == 4:
                 # stokes
                 saxis = axes[3]
-                saxis = saxis[:naxis_i[3]]
-                self.ns = naxis_i[3]
+                saxis = saxis[:self.naxis_i[3]]
+                self.ns = self.naxis_i[3]
             else:
                 saxis = np.array([0.])
         else:
@@ -203,15 +218,15 @@ class Imfits():
 
             # to velocity
             if velocity:
-                if label_i[2] in keys_velocity:
-                    print ('The third axis is ', label_i[2])
+                if self.label_i[2] in keys_velocity:
+                    print ('The third axis is ', self.label_i[2])
                     # m/s --> km/s
                     vaxis    = vaxis*1.e-3 # m/s --> km/s
                     #del_v    = del_v*1.e-3
                     #refval_v = refval_v*1.e-3
                     #vaxis    = vaxis*1.e-3
                 else:
-                    print ('The third axis is ', label_i[2])
+                    print ('The third axis is ', self.label_i[2])
                     print ('Convert frequency to velocity')
                     # frequency (Hz) --> radio velocity (km/s)
                     vaxis = clight*(1.-vaxis/restfreq)*1.e-5
@@ -229,7 +244,7 @@ class Imfits():
 
 
     # Read fits file of Poistion-velocity (PV) diagram
-    def read_pvfits(self):
+    def read_pvfits(self, axesorder=()):
         '''
         Read fits file of pv diagram produced by CASA.
         '''
@@ -247,12 +262,16 @@ class Imfits():
         label_i  = np.array([header['CTYPE'+str(i+1)] for i in range(naxis)])
         refpix_i = np.array([int(header['CRPIX'+str(i+1)]) for i in range(naxis)])
         refval_i = np.array([header['CRVAL'+str(i+1)] for i in range(naxis)]) # degree
-        if 'CDELT1' in header:
-            del_i = np.array([header['CDELT'+str(i+1)] for i in range(naxis)]) # degree
         self.naxis_i  = naxis_i
         self.label_i  = label_i
         self.refpix_i = refpix_i
         self.refval_i = refval_i
+        if 'CDELT1' in header:
+            del_i = np.array([header['CDELT'+str(i+1)] for i in range(naxis)]) # degree
+            self.del_i = del_i
+        else:
+            self.del_i = []
+
 
         # beam size (degree)
         if 'BMAJ' in header:
@@ -324,12 +343,25 @@ class Imfits():
         # axes
         axes = np.array([np.dot(pc_ij, (i+1 - refpix_i))\
          for i in range(np.max(naxis_i))]).T # +1 in i+1 comes from 0 start index in python
+        self._axes = axes
+
+
+        # reorder if neccessary
+        if len(axesorder) == 0:
+            # auto re-ordering
+            axes_keys = {'OFFSET': 0, 'FREQ': 1, 'STOKES': 2,}
+            # if OFFSET, FREQ, STOKES axes are found
+            if all([i in axes_keys.keys() for i in self.label_i]):
+                self.reorder_axes(tuple([axes_keys[i] for i in self.label_i]))
+        elif len(axesorder): self.reorder_axes(axesorder)
+
 
         # x & v axes
-        xaxis = axes[0]
-        vaxis = axes[1]
-        xaxis = xaxis[:naxis_i[0]]               # offset
-        vaxis = vaxis[:naxis_i[1]] + refval_i[1] # frequency, absolute
+        xaxis = self._axes[0]
+        vaxis = self._axes[1]
+        xaxis = xaxis[:self.naxis_i[0]]               # offset
+        vaxis = vaxis[:self.naxis_i[1]] + self.refval_i[1] # frequency, absolute
+
 
         # check unit of offest
         if 'CUNIT1' in header:
@@ -337,7 +369,7 @@ class Imfits():
             if unit_i[0] == 'degree' or unit_i[0] == 'deg':
                 # degree --> arcsec
                 xaxis    = xaxis*3600.
-                del_i[0] = del_i[0]*3600.
+                self.del_i[0] = self.del_i[0]*3600.
         else:
             print ('WARNING: No unit information in the header.\
                 Assume units of arcesc and Hz for offset and frequency axes, respectively.')
@@ -357,8 +389,8 @@ class Imfits():
         # if stokes axis
         axes_out = np.array([xaxis, vaxis], dtype=object)
         if naxis >= 3:
-            saxis = axes[2]
-            saxis = saxis[:naxis_i[2]]
+            saxis = self._axes[2]
+            saxis = saxis[:self.naxis_i[2]]
             axes_out = np.array([xaxis, vaxis, saxis], dtype=object)
 
 
@@ -371,6 +403,36 @@ class Imfits():
         self.vaxis = vaxis
         self.delx  = delx
         self.delv  = delv
+
+
+    def reorder_axes(self, order):
+        '''
+        Reorder fits axes.
+
+        Parameter
+        ---------
+         order (tuple): New order of axes. Must be given as tuple within which
+            new order is specified by integers. E.g., in order to swich the 2nd and 4th axes,
+            the input will be (0, 3, 2, 1). Note that the 1st axis index is zero following the python rule.
+        '''
+        # check
+        if type(order) != tuple:
+            print('ERROR\reorder_axes\t: input new order must be tuple')
+            return 0
+        elif all([type(i) == int for i in order]) == False:
+            print('ERROR\reorder_axes\t: indices in the tuple must be intergers')
+            return 0
+        elif len(order) != self.naxis:
+            print('ERROR\reorder_axes\t: The input order and fits axes must have the same dimension.')
+            return 0
+
+        outbox = []
+        for i in [self.naxis_i, self.label_i, self.refpix_i, self.refval_i, self.del_i, self._axes]:
+            if len(i) != 0:
+                i = [i[j] for j in order]
+                outbox.append(i)
+        # replace with reordered ones
+        self.naxis_i, self.label_i, self.refpix_i, self.refval_i, self.del_i, self._axes = outbox
 
 
     # Get sky coordinates with astropy
@@ -842,13 +904,17 @@ class Imfits():
             return -1
 
     def get_mapextent(self, unit='arcsec'):
-        xmin, xmax = self.xaxis[[0,-1]]
-        ymin, ymax = self.yaxis[[0,-1]]
-        extent = (xmin-0.5*self.delx, 
-                xmax+0.5*self.delx, 
-                ymin-0.5*self.dely, 
-                ymax+0.5*self.dely)
-        if unit == 'arcsec':
+        xaxis = self.xaxis
+        delx = self.delx
+        yaxis = self.vaxis if self.ifpv else self.yaxis
+        dely = self.delv if self.ifpv else self.dely
+        xmin, xmax = xaxis[[0,-1]]
+        ymin, ymax = yaxis[[0,-1]]
+        extent = (xmin-0.5 * delx, 
+                xmax+0.5 * delx, 
+                ymin-0.5 * dely, 
+                ymax+0.5 * dely)
+        if (self.ifpv == False) & (unit == 'arcsec'):
             extent = tuple(np.array(list(extent))*3600.) # deg --> arcsec
         self.extent = extent
         return extent
