@@ -31,7 +31,8 @@ class Imfits():
     '''
 
     def __init__(self, infile, pv=False, 
-        frame=None, equinox='J2000', axesorder=()):
+        frame=None, equinox='J2000', axesorder=(), 
+        velocity=True):
         self.file = infile
         self.data, self.header = fits.getdata(infile, header=True)
 
@@ -43,7 +44,7 @@ class Imfits():
         if pv:
             self.read_pvfits(axesorder=axesorder)
         else:
-            self.read_header(axesorder=axesorder)
+            self.read_header(axesorder=axesorder, velocity=velocity)
             self.get_coordinates()
         self.get_mapextent()
 
@@ -207,7 +208,7 @@ class Imfits():
 
 
         # frequency --> velocity
-        keys_velocity = ['VRAD', 'VELO', 'VELO-LSR']
+        keys_velocity = ['VRAD', 'VELO',]
         if len(vaxis) > 1:
             # into Hz
             if 'CUNIT3' in self.header:
@@ -218,7 +219,7 @@ class Imfits():
 
             # to velocity
             if velocity:
-                if self.label_i[2] in keys_velocity:
+                if any([i in self.label_i[2] for i in keys_velocity]):
                     print ('The third axis is ', self.label_i[2])
                     # m/s --> km/s
                     vaxis    = vaxis*1.e-3 # m/s --> km/s
