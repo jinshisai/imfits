@@ -50,7 +50,7 @@ infile   = 'fitsname.fits' # fits file
 fitsdata = Imfits(infile)  # Read information
 ```
 
-Then, you can call the data and the header information easily.
+Then, you can call the data and header information easily.
 
 ```python
 data  = fitsdata.data  # Call data array
@@ -58,10 +58,10 @@ xaxis = fitsdata.xaxis # Call x axis
 nx    = fitsdata.nx    # Size of xaxis
 ```
 
-You can also draw maps calling drawmaps. Moment maps, channel maps and PV diagrams are now supported.
+You can also draw maps calling drawmaps. Moment maps, channel maps and position-velocity (PV) diagrams are now supported.
 
 ```python
-from imfits import drawmaps
+from imfits import drawmaps as dm
 
 # Moment map
 drawmaps.intensitymap(fitsdata, outname='test', outformat='pdf')
@@ -72,11 +72,11 @@ drawmaps.intensitymap(fitsdata, outname='test', outformat='pdf')
 drawmaps.channelmaps(fitsdata, outname='test', outformat='pdf')
 ```
 
-Add an option ```pv=True``` to read a fits file of a position-velocity (PV) diagram.
+Add an option `pv=True` to read a fits file of a PV diagram.
 
 ```python
 from imfits import Imfits
 
-infile   = 'pvfits.fits'           # fits file
+infile   = 'pvdiagram.fits'           # fits file
 fitsdata = Imfits(infile, pv=True) # Read information
 ```
