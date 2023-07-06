@@ -36,20 +36,37 @@ class Imfits():
         self.file = infile
         self.data, self.header = fits.getdata(infile, header=True)
 
-        self.frame = frame if frame else None
-        if equinox:
-            self.equinox = equinox
-
         self.ifpv = pv
         if pv:
             self.read_pvfits(axesorder=axesorder)
+            self.frame = None
+            self.equinox = None
         else:
-            self.read_header(axesorder=axesorder, velocity=velocity)
+            self.read_header(frame=frame, 
+                axesorder=axesorder, 
+                velocity=velocity, equinox=equinox)
             self.get_coordinates()
+
         self.get_mapextent()
 
 
-    def read_header(self, velocity=True, axesorder=()):
+    def read_coordinate_frame(self):
+        header = self.header
+        if 'RADESYS' in header:
+            self.frame = header['RADESYS'].strip()
+            self.equinox = 'J' + str(header['EQUINOX']) if 'EQUINOX' in header else None
+        elif any([i in header for i in ('EQUINOX', 'EPOCH')]):
+            key = 'EQUINOX' if 'EQUINOX' in header else 'EPOCH'
+            self.equinox = 'J' + str(header[key])
+            self.frame = 'fk5' if header[key] >= 1984.0 else 'fk4'
+        else:
+            print('WARRING\tread_coordinate_frame: Cannot find the coordinate frame in the header.')
+            print('WARRING\tread_coordinate_frame: ICRS is assumed. Input frame by hand to use another frame.')
+            self.frame = 'icrs'
+
+
+    def read_header(self, frame=None, 
+        velocity=True, axesorder=(), equinox='J2000'):
         '''
         Get axes of a fits file. x axis and y axis will be in intermediate coordinates.
 
@@ -114,27 +131,19 @@ class Imfits():
 
         # Coordinates
         # Coordinate frame
-        if self.frame:
-            pass
+        if frame is not None:
+            self.frame = frame
+            self.equinox = equinox
         else:
-            if 'RADESYS' in header:
-                self.frame = header['RADESYS'].strip()
-                if 'EQUINOX' in header:
-                    self.equinox = 'J' + str(header['EQUINOX'])
-                else:
-                    self.equinox = None
-            else:
-                print('WARRING\tread_header: Cannot find info. of the coordinate system.')
-                print('WARRING\tread_header: Input frame by hand to get coordinates.')
-                self.frame = None
+            self.read_coordinate_frame()
 
         # read projection type
         try:
             ra_indx = [i for i in range(self.naxis) if 'RA' in self.label_i[i]][0]
             projection = label_i[ra_indx].replace('RA---','')
         except:
-            print ('Cannot read information about projection from fits file.')
-            print ('Set projection SIN for radio interferometric data.')
+            print ('WARNING\tread_header: Cannot read information about projection from header.')
+            print ('WARNING\tread_header: Projection SIN is used assuming radio interferometric data.')
             projection = 'SIN'
         self.projection = projection
 
