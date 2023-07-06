@@ -33,7 +33,7 @@ run `git pull` in the Imfits directory to make it up-to-date. Adding path in .ba
 
 
 ```bash
-pip install git+https://github.com/jinshisai/Imfits
+pip install git+https://github.com/jinshisai/imfits
 ```
 
 
