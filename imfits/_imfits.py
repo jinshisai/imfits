@@ -576,6 +576,30 @@ class Imfits():
             #self.yaxis = yy_new[:, self.ny//2].deg # or -= y_offset.deg
 
 
+    def estimate_noise(self, nitr=1000, thr=2.3):
+        '''
+        Estimate map noise.
+
+        Parameters
+        ----------
+        nitr (int): Number of the maximum iteration.
+        thr (float): Threshold where iteration stops.
+        '''
+
+        d = self.data.copy()
+        rms = np.sqrt(np.nanmean(d*d))
+        for i in range(nitr):
+            rms_p = rms
+            d[d >= thr*rms] = np.nan
+            rms = np.sqrt(np.nanmean(d*d))
+
+            if (rms - rms_p)*(rms - rms_p) < 1e-20:
+                return rms
+
+        print('Reach maximum number of iteration.')
+        return rms
+
+
     def convert_units(self, conversion='IvtoTb'):
         '''
         Unit conversion
