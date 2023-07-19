@@ -49,7 +49,7 @@ class AstroCanvas():
         nrow_ncol: tuple = (0, 0),
         axes_pad: tuple = (0.2, 0.2),
         fig = None,
-        grid: bool = False,
+        imagegrid: bool = False,
         cbar_mode: str = None, 
         figsize: tuple = figsize_def,
         pltconfig: dict = pltconfig_def) -> None:
@@ -62,7 +62,7 @@ class AstroCanvas():
 
         # set figure
         nrow, ncol = nrow_ncol
-        self.grid = grid
+        self.grid = imagegrid
         if fig is not None:
             self.axes = fig.axes
             self.naxes = len(self.axes)
@@ -76,7 +76,7 @@ class AstroCanvas():
                 self.axes = [fig.add_subplot(111)] # axes
                 self.naxes = len(self.axes)
             elif (nrow >= 1) & (ncol >= 1):
-                if grid:
+                if imagegrid:
                     self.add_grid(nrow, ncol, 
                         cbar_mode = cbar_mode, axes_pad = axes_pad)
                 else:
@@ -213,7 +213,7 @@ class AstroCanvas():
         color=True, cmap='PuBuGn', colorbar=True, cbarlabel=None, 
         cbaroptions=np.array(['right','3%','0%']), 
         vmin=None, vmax=None, color_norm=None,
-        contour=True, clevels=None, ccolor='k', clw=1, 
+        contour=False, clevels=None, ccolor='k', clw=1, 
         xticks=[], yticks=[], absolutecoords=False, scalebar=[],
         plot_beam=True, bcolor='k',
         ccross=True, prop_cross=[None, 1., 'k'], 

@@ -1,6 +1,9 @@
+[![Documentation Status](https://readthedocs.org/projects/imfits/badge/?version=latest)](https://imfits.readthedocs.io/en/latest/?badge=latest)
+
+
 imfits
 -----------------------
-imfits is a python module to read, handle, analyze and draw maps from fits files for astronomy easily. Imfits, the python class contains header and image information in variables, making it easy to call them. This is made for fits images especially at (sub)millimeter wavelengths obtained with telescopes like ALMA, ACA, SMA, JCMT, IRAM-30m and so on. Not guaranteed but could be applied to other fits data like at IR wavelengths.
+imfits is a python module to read, handle, analyze and draw maps from fits files for astronomy easily. The python class `Imfits` contains header and image information in variables, making it easy to call them. This has been developed for fits images/cubes at (sub)millimeter wavelengths (and particularly for ALMA data). Not guaranteed but could be applied to other fits data at other wavelengths (optical, infrared, and so on).
 
 Imfits can also read fits files of position-velocity (PV) diagrams. The script is well tested for fits files exported from [CASA](https://casa.nrao.edu).
 
@@ -24,7 +27,7 @@ Install Imfits
 You can get it using `git clone`.
 
 ```bash
-git clone https://github.com/jinshisai/Imfits
+git clone https://github.com/jinshisai/imfits
 ```
 run `git pull` in the Imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module.
 
@@ -33,7 +36,7 @@ run `git pull` in the Imfits directory to make it up-to-date. Adding path in .ba
 
 
 ```bash
-pip install git+https://github.com/jinshisai/Imfits
+pip install git+https://github.com/jinshisai/imfits
 ```
 
 
