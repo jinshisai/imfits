@@ -22,7 +22,7 @@ Taipei, Taiwan
 Website: [jinshisai.github.io](https://jinshisai.github.io)
 
 
-Install Imfits
+Install imfits
 ----
 You can get it using `git clone`.
 
@@ -41,7 +41,7 @@ pip install git+https://github.com/jinshisai/imfits
 
 
 
-Use Imfits
+Use imfits
 ---------------
 
 Imfits read a fits file.
@@ -61,25 +61,15 @@ xaxis = fitsdata.xaxis # Call x axis
 nx    = fitsdata.nx    # Size of xaxis
 ```
 
-You can also draw maps calling drawmaps. Moment maps, channel maps and position-velocity (PV) diagrams are now supported.
+You can also draw maps calling `AstroCanvas` from `imfits.drawmaps`.
 
 ```python
-from imfits import drawmaps as dm
+from imfits.drawmaps import AstroCanvas
 
-# Moment map
-drawmaps.intensitymap(fitsdata, outname='test', outformat='pdf')
-# That's it! test.pdf is the drawn map.
-# You can put more options to draw beautiful maps.
-
-# Channel maps
-drawmaps.channelmaps(fitsdata, outname='test', outformat='pdf')
+canvas = dm.AstroCanvas((1,1))
+canvas.intensitymap(im)
+canvas.savefig('outputname')
+plt.show()
 ```
 
-Add an option `pv=True` to read a fits file of a PV diagram.
-
-```python
-from imfits import Imfits
-
-infile   = 'pvdiagram.fits'           # fits file
-fitsdata = Imfits(infile, pv=True) # Read information
-```
+Continuum maps, moment maps, channel maps and position-velocity (PV) diagrams are now supported. See [![Documentation Status](https://readthedocs.org/projects/imfits/badge/?version=latest)](https://imfits.readthedocs.io/en/latest/?badge=latest) for more details.
