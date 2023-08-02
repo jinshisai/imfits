@@ -6,15 +6,42 @@
 imfits
 ==================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+imfits is a python module to read, handle, analyze and draw maps from fits files for astronomy easily. The python class Imfits contains header and image information in variables, making it easy to call them. This has been developed for fits images/cubes at (sub)millimeter wavelengths (and particularly for ALMA data). Not guaranteed but could be applied to other fits data at other wavelengths (optical, infrared, and so on).
+
+Imfits can also read fits files of position-velocity (PV) diagrams. The script is well tested for fits files exported from [CASA](https://casa.nrao.edu).
 
 
 
-Indices and tables
+Installation
+=============
+
+You can get it using 'git clone'.
+
+::
+
+   git clone https://github.com/jinshisai/imfits
+
+
+run 'git pull' in the imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module.
+
+
+The pip install is also available but 'git clone' & 'git pull' is recommended to catch up all updates. If you wish to use pip, type
+
+
+::
+   
+   pip install git+https://github.com/jinshisai/imfits
+
+
+
+
+Contents
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+
+   tutorials/demo_basic
+   tutorials/demo_channelmaps
+   tutorials/demo_pvdiagram
