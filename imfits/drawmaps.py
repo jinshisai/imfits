@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import ImageGrid, make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
@@ -650,7 +651,7 @@ class AstroCanvas():
             add_scalebar(grid[(nrow-1)*ncol], scalebar)
         # colorbar
         if color and ax:
-            cax, cbar = self.add_colorbar(imcolor, cbarlabel,)
+            cax, cbar = self.add_colorbar(imcolor, cbarlabel=cbarlabel,)
         # remove blank pannel
         if gridi != gridimax+1 and gridi != 0:
             while gridi != gridimax+1:
@@ -661,8 +662,201 @@ class AstroCanvas():
         return self.axes
 
 
+    def pvdiagram(self, image,
+        color=True, cmap='PuBuGn', color_norm=None, vmin=None, vmax=None, 
+        contour=True, clevels=None, ccolor='k', lw=1,
+        pa=None, vsys=None, vrel=False, x_offset=False, ratio=1.2,
+        clip=None, plot_res=True, xlim=[], ylim=[],
+        ln_hor=True, ln_var=True, alpha=None, colorbar=False,
+        cbaroptions=('right', '3%', '0%'), cbarlabel=r'(Jy beam$^{-1}$)',
+        iaxis=0, inmode=None, data=None, outname=None, transparent=True):
+        '''
+        Draw the PV diagram.
+
+        Parameters
+        ----------
+         - outname:
+        '''
+
+        # Modules
+        import copy
+        import matplotlib as mpl
+        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+        # function
+        def change_aspect_ratio(ax, ratio):
+            '''
+            This function change aspect ratio of figure.
+            Parameters:
+                ax: ax (matplotlit.pyplot.subplots())
+                    Axes object
+                ratio: float or int
+                    relative x axis width compared to y axis width.
+            '''
+            aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0]) / (ax.get_ylim()[1] - ax.get_ylim()[0])
+            aspect = np.abs(aspect)
+            aspect = float(aspect)
+            ax.set_aspect(aspect)
+
+        # axis
+        ax = self.axes[iaxis]
+
+        # Input
+        if inmode == 'data':
+            if data is None:
+                print ("ERROR\tpvdiagram: inmode ='data' is selected. data must be provided.")
+                return 0
+            naxis = len(data.shape)
+        else:
+            data   = np.squeeze(image.data)
+            header = image.header
+            naxis  = image.naxis
+
+
+        # Read
+        xaxis = image.xaxis.copy()
+        vaxis = image.vaxis.copy()
+        delx  = image.delx
+        delv  = image.delv
+        nx    = len(xaxis)
+        nv    = len(vaxis)
+
+        # Beam
+        bmaj, bmin, bpa = image.beam
+
+        if image.res_off:
+            res_off = image.res_off
+        else:
+            # Resolution along offset axis
+            if image.pa:
+                pa = image.pa
+
+            if pa:
+                # an ellipse of the beam
+                # (x/bmin)**2 + (y/bmaj)**2 = 1
+                # y = x*tan(theta)
+                # --> solve to get resolution in the direction of pv cut with P.A.=pa
+                del_pa = pa - bpa
+                del_pa = del_pa*np.pi/180. # radian
+                term_sin = (np.sin(del_pa)/bmin)**2.
+                term_cos = (np.cos(del_pa)/bmaj)**2.
+                res_off  = np.sqrt(1./(term_sin + term_cos))
+            else:
+                res_off = bmaj
+
+        # relative velocity or LSRK
+        offlabel = r'$\mathrm{Offset\ (arcsec)}$'
+        if vrel:
+            vaxis   = vaxis - vsys
+            vlabel  = r'$\mathrm{Relative\ velocity\ (km\ s^{-1})}$'
+            vcenter = 0.
+        else:
+            vlabel  = r'$\mathrm{LSR\ velocity\ (km\ s^{-1})}$'
+            vcenter = vsys
+
+
+        # set extent of an self
+        offmin = xaxis[0] - delx*0.5
+        offmax = xaxis[-1] + delx*0.5
+        velmin = vaxis[0] - delv*0.5
+        velmax = vaxis[-1] + delv*0.5
+
+
+        # set axes
+        if x_offset:
+            extent = (offmin,offmax,velmin,velmax)
+            xlabel = offlabel
+            ylabel = vlabel
+            hline_params = [vcenter,offmin,offmax]
+            vline_params = [0.,velmin,velmax]
+            res_x = res_off
+            res_y = delv
+        else:
+            data   = data.T
+            extent = (velmin,velmax,offmin,offmax)
+            xlabel = vlabel
+            ylabel = offlabel
+            hline_params = [0.,velmin,velmax]
+            vline_params = [vcenter,offmin,offmax]
+            res_x = delv
+            res_y = res_off
+
+
+        # Set colorscale
+        vmax = vmax if vmax is not None else np.nanmax(data)
+        vmin = vmin if vmin is not None else np.nanmin(data)
+        # color scale
+        norm = color_normalization(color_norm, vmin, vmax)
+
+
+        # clip data at some value
+        data_color = data.copy()
+        if clip: data_color[np.where(data < clip)] = np.nan
+
+        # plot in color
+        if color:
+            imcolor = ax.imshow(data_color, cmap=cmap, origin='lower',
+                extent=extent, norm=norm, alpha=alpha)
+        # plot with contours
+        if contour:
+            if clevels is None:
+                clevels = np.arange(0.2, 1., 0.2)*np.nanmax(data)
+            imcont  = ax.contour(data, colors=ccolor, origin='lower',
+                extent=extent, levels=clevels, linewidths=lw, alpha=alpha)
+
+        # axis labels
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
+        # set xlim, ylim
+        if len(xlim) == 0:
+            ax.set_xlim(extent[0],extent[1])
+        elif len(xlim) == 2:
+            ax.set_xlim(*xlim)
+        else:
+            print ('WARRING\tpvdiagram: Input xlim is in a wrong format. Must be [xmin, xmax].')
+            ax.set_xlim(extent[0],extent[1])
+
+        if len(ylim) == 0:
+            ax.set_ylim(extent[2],extent[3])
+        elif len(ylim) == 2:
+            ax.set_ylim(*ylim)
+        else:
+            print ('WARRING\tpvdiagram: Input ylim is in a wrong format. Must be [ymin, ymax].')
+            ax.set_ylim(extent[2],extent[3])
+
+
+        # lines showing offset 0 and relative velocity 0
+        if ln_hor:
+            if all([i is not None for i in hline_params]):
+                xline = ax.hlines(hline_params[0], hline_params[1], hline_params[2], ccolor, linestyles='dashed', linewidths = 1.)
+        if ln_var:
+            if all([i is not None for i in vline_params]):
+                yline = ax.vlines(vline_params[0], vline_params[1], vline_params[2], ccolor, linestyles='dashed', linewidths = 1.)
+
+        ax.tick_params(which='both', direction='in',
+            bottom=True, top=True, left=True, right=True, pad=9,)
+
+        # plot resolutions
+        if plot_res:
+            # x axis
+            #print (res_x, res_y)
+            res_x_plt, res_y_plt = ax.transLimits.transform((res_x*0.5, res_y*0.5)) -  ax.transLimits.transform((0, 0)) # data --> Axes coordinate
+            ax.errorbar(0.1, 0.1, xerr=res_x_plt, yerr=res_y_plt, color=ccolor, capsize=3, capthick=1., elinewidth=1., transform=ax.transAxes)
+
+        # aspect ratio
+        if ratio: change_aspect_ratio(ax, ratio)
+        # color bar
+        if all([color, colorbar]): self.add_colorbar(imcolor, iaxis=iaxis,
+            cbarlabel=cbarlabel, cbaroptions=cbaroptions)
+        # save figure
+        if outname: self.savefig(outname, transparent = transparent)
+
+        return self.axes
+
+
     def add_colorbar(self, 
-        cim = None, iaxis = None,
+        cim = None, iaxis = 0,
         cbarlabel: str='', 
         cbaroptions: list = ['right', '3%', '0%'],
         ticks: list = None,
@@ -697,10 +891,29 @@ class AstroCanvas():
             else:
                 print('WARNING\tadd_colorbar: cbaroptions must have three or four elements. \
                 Input is ignored.')
-            # divide axis
             cbar_loc, cbar_wd, cbar_pad = cbaroptions
-            divider = make_axes_locatable(self.axes[iaxis])
-            cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
+            # divide axis
+            #divider = make_axes_locatable(self.axes[iaxis])
+            #cax     = divider.append_axes(cbar_loc, size=cbar_wd, pad=cbar_pad)
+            # use inset axes
+            if cbar_loc == 'right':
+                width = cbar_wd
+                height = '100%'
+                bbox_to_anchor = (1. + float(cbar_pad.strip('%'))*0.01, 0., 1., 1.)
+            elif cbar_loc == 'top':
+                width = '100%'
+                height = cbar_wd
+                bbox_to_anchor = (0., 1. + float(cbar_pad.strip('%'))*0.01, 1., 1.)
+            else:
+                print("ERROR\tadd_colorbar: cbar_loc must be 'right' or 'top'.")
+                return 0
+            cax = inset_axes(self.axes[iaxis],
+                width = width,
+                height = height,
+                loc = 'lower left',
+                bbox_to_anchor = bbox_to_anchor,
+                bbox_transform = self.axes[iaxis].transAxes,
+                borderpad = 0.)
             # add a color bar
             cbar = plt.colorbar(cim, cax=cax, ticks=ticks, 
                 orientation=orientations[cbar_loc], ticklocation=cbar_loc)
@@ -716,6 +929,9 @@ class AstroCanvas():
 
         #cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, color=tickcolor,)
         return cax, cbar
+
+
+
 
 
 
@@ -1408,6 +1624,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
         plt.savefig(outfile, transparent = True)
 
     return grid
+
 
 
 # Draw pv diagram
