@@ -440,7 +440,7 @@ class Imfits():
         for i in [self.naxis_i, self.label_i, self.refpix_i, self.refval_i, self.del_i, self._axes]:
             if len(i) != 0:
                 i = [i[j] for j in order]
-                outbox.append(i)
+            outbox.append(i)
         # replace with reordered ones
         self.naxis_i, self.label_i, self.refpix_i, self.refval_i, self.del_i, self._axes = outbox
 
@@ -886,6 +886,19 @@ class Imfits():
                     print('index_between: mode parameter is not right.')
                     return (tlim[0] <= t) * (t <= tlim[1])
 
+        # if pvd
+        if self.ifpv == True:
+            self.data = np.squeeze(self.data)
+            yimin, yimax = index_between(self.vaxis, ylim, mode='edge')[0]
+            ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
+            self.data    = self.data[yimin:yimax+1, ximin:ximax+1]
+            #self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
+            #self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
+            self.vaxis   = self.vaxis[index_between(self.vaxis, ylim)]
+            self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+            self.nx = len(self.xaxis)
+            self.nv = len(self.vaxis)
+            return 1
         xlim = np.array(xlim)/3600. # arcsec --> deg
         ylim = np.array(ylim)/3600. # arcsec --> deg
         if self.naxis == 2:

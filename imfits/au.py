@@ -119,6 +119,41 @@ def getflux(image, rms=None, aptype='circle',
         return flux
 
 
+
+def get_rmsmap(cube, vwindows=[[]]):
+    vaxis = cube.vaxis.copy()
+    data = np.squeeze(cube.data.copy())
+    if len(data.shape) !=3:
+        print('ERROR\trmsmap: Input data shape is not right.')
+        print('ERROR\trmsmap: Currently only Stokes I cube is supported.')
+        return 0
+
+    if type(vwindows) != list:
+        print('ERROR\trmsmap: Input vwindows format is wrong.')
+        print('ERROR\trmsmap: Must be a list object.')
+        return 0
+
+    if type(vwindows[0]) == float:
+        indx = (vaxis >= vwindows[0]) & (vaxis < vwindows[1])
+        d_masked = data[~indx, :, :]
+    elif type(vwindows[0]) == list:
+        if len(vwindows[0]) == 0:
+            d_masked = data.copy()
+        else:
+            conditions = np.array([(vaxis >= vwindows[i][0]) & (vaxis < vwindows[i][1])
+                for i in range(len(vwindows))])
+            indx = conditions.any(axis=0)
+            d_masked = data[~indx, :, :]
+    else:
+        print('ERROR\trmsmap: Format of vwindows elements is wrong.')
+        print('ERROR\trmsmap: Must be float or list objects.')
+        return 0
+
+    return np.sqrt(np.nanmean(d_masked * d_masked, axis=0))
+
+
+
+
 def get_1Dprofile(image, pa, average_side=False):
     '''
     Get one dimensional profile in a orientation at a position angule.
