@@ -805,7 +805,7 @@ class Imfits():
             #moments_err = []
 
         # moment 1
-        if any([i >= 1 for i in moment ]):
+        if any([i in [1,2] for i in moment ]):
             vtile = np.tile(vaxis, (nx, ny, 1))
             vtile = np.transpose(vtile, (2, 1, 0))
             mom1 = np.sum(data * vtile * delv, axis=0)/mom0
