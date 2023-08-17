@@ -205,6 +205,33 @@ class AstroCanvas():
         return grid
 
 
+    def ax_corner(self, loc='lower left'):
+        '''
+        Return axis at the corner.
+
+        Parameter
+        ---------
+        loc (str): the corner location to be extracted. 'upper/lower left/right'.
+        '''
+        loc = loc.replace('bottom', 'lower')
+        loc = loc.replace('top', 'upper')
+        if loc == 'lower left':
+            indx = self.ncol * (self.nrow - 1)
+        elif loc == 'lower right':
+            indx = -1
+        elif loc == 'upper left':
+            indx = 0
+        elif loc == 'upper right':
+            indx = self.ncol - 1
+        else:
+            print('ERROR\tax_corner: the input location is wrong.')
+            print('ERROR\tax_corner: must be upper left, upper right, \
+                lower left, or lower right.')
+            return 0
+
+        return self.axes[indx]
+
+
     def savefig(self, outname: str, 
         ext : str = 'pdf', transparent: bool = True):
         self.fig.savefig(outname + '.' + ext, transparent=transparent)
@@ -2054,11 +2081,21 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
     'top left': (0.1, 0.9),
     'top right': (0.9, 0.9),
     }
-    if loc in coords.keys():
-        xy = coords[loc]
+    if type(loc) == str:
+        if loc in coords.keys():
+            xy = coords[loc]
+        else:
+            print('ERROR\tplot_beam: loc keyword is not correct.')
+            print('ERROR\tplot_beam: must be bottom left, bottom right, \
+            top left, or top right.')
+            return 0
+    elif (type(loc) == tuple) & (len(loc) == 2):
+        xy = loc
     else:
-        print('CAUTION\tplot_beam: loc keyword is not correct.')
+        print('ERROR\tplot_beam: loc keyword is not correct.')
+        print('ERROR\tplot_beam: must be strings or tuple with two elements.')
         return 0
+
     # plot
     bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
     beam = patches.Ellipse(xy=xy,

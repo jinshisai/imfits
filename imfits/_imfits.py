@@ -440,7 +440,7 @@ class Imfits():
         for i in [self.naxis_i, self.label_i, self.refpix_i, self.refval_i, self.del_i, self._axes]:
             if len(i) != 0:
                 i = [i[j] for j in order]
-                outbox.append(i)
+            outbox.append(i)
         # replace with reordered ones
         self.naxis_i, self.label_i, self.refpix_i, self.refval_i, self.del_i, self._axes = outbox
 
@@ -578,7 +578,9 @@ class Imfits():
 
     def estimate_noise(self, nitr=1000, thr=2.3):
         '''
-        Estimate map noise.
+        Estimate map noise by calculating rms iteratively.
+        For more precise measurements of the noise level,
+        use getrms_cube method.
 
         Parameters
         ----------
@@ -598,6 +600,71 @@ class Imfits():
 
         print('Reach maximum number of iteration.')
         return rms
+
+
+    def getrms_cube(self, vwindows=[[]], 
+        radius=None, saxis=0):
+        '''
+        Calculate rms based on line free channels.
+
+        Parameters:
+        '''
+        naxis = self.naxis
+        if naxis == 3:
+            nv, ny, nx = self.data.shape
+            if nv <= 1:
+                print ('ERROR\tgetrms_cube: No proper frequency axis is found.')
+                print ('ERROR\tgetrms_cube: Must have the frequency axis.')
+                return 0
+            data = self.data.copy()
+        elif naxis == 4:
+            ns, nv, ny, nx = self.data.shape
+            if nv <= 1:
+                print ('ERROR\tgetrms_cube: No proper frequency axis is found.')
+                print ('ERROR\tgetrms_cube: Must have the frequency axis.')
+                return 0
+            data = self.data[saxis,:,:,:].copy()
+        else:
+            print ('ERROR\tgetrms_cube: NAXIS of fits is neither 3 nor 4.')
+            print ('ERROR\tgetrms_cube: The input fits file must have 3 or 4 axes.')
+            return 0
+
+
+        vaxis = self.vaxis.copy()
+        xx = self.xx.copy() * 3600.
+        yy = self.yy.copy() * 3600.
+        rr = np.sqrt(xx * xx + yy * yy)
+
+        if type(vwindows) != list:
+            print('ERROR\trmsmap: Input vwindows format is wrong.')
+            print('ERROR\trmsmap: Must be a list object.')
+            return 0
+
+        if type(vwindows[0]) == float:
+            indx = (vaxis >= vwindows[0]) & (vaxis < vwindows[1])
+            d_masked = data[~indx, :, :]
+        elif type(vwindows[0]) == list:
+            if len(vwindows[0]) == 0:
+                d_masked = data.copy()
+            else:
+                conditions = np.array([(vaxis >= vwindows[i][0]) & (vaxis < vwindows[i][1])
+                    for i in range(len(vwindows))])
+                indx = conditions.any(axis=0)
+                d_masked = data[~indx, :, :]
+        else:
+            print('ERROR\trmsmap: Format of vwindows elements is wrong.')
+            print('ERROR\trmsmap: Must be float or list objects.')
+            return 0
+
+        if radius is not None:
+            for i in range(d_masked.shape[0]):
+                _d = d_masked[i,:,:]
+                _d[rr > radius] = np.nan
+                d_masked[i,:,:] = _d
+
+        # rms for each pannel
+        _rms = np.sqrt(np.nanmean(d_masked * d_masked, axis=(1,2)))
+        return np.nanmean(_rms)
 
 
     def convert_units(self, conversion='IvtoTb'):
@@ -738,7 +805,7 @@ class Imfits():
             #moments_err = []
 
         # moment 1
-        if any([i >= 1 for i in moment ]):
+        if any([i in [1,2] for i in moment ]):
             vtile = np.tile(vaxis, (nx, ny, 1))
             vtile = np.transpose(vtile, (2, 1, 0))
             mom1 = np.sum(data * vtile * delv, axis=0)/mom0
@@ -886,6 +953,19 @@ class Imfits():
                     print('index_between: mode parameter is not right.')
                     return (tlim[0] <= t) * (t <= tlim[1])
 
+        # if pvd
+        if self.ifpv == True:
+            self.data = np.squeeze(self.data)
+            yimin, yimax = index_between(self.vaxis, ylim, mode='edge')[0]
+            ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
+            self.data    = self.data[yimin:yimax+1, ximin:ximax+1]
+            #self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
+            #self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
+            self.vaxis   = self.vaxis[index_between(self.vaxis, ylim)]
+            self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+            self.nx = len(self.xaxis)
+            self.nv = len(self.vaxis)
+            return 1
         xlim = np.array(xlim)/3600. # arcsec --> deg
         ylim = np.array(ylim)/3600. # arcsec --> deg
         if self.naxis == 2:
