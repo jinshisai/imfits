@@ -52,11 +52,34 @@ class AstroCanvas():
         fig = None,
         imagegrid: bool = False,
         cbar_mode: str = None, 
+        cbaroptions = ['right', '2%', '0%'],
+        label_mode = '1',
         figsize: tuple = figsize_def,
         pltconfig: dict = pltconfig_def) -> None:
         '''
         Initialize and set a canvas.
 
+        Parameters
+        ----------
+         - nrow_ncol (tuple): Number of rows and columns. Must be given in a format of 
+           (n_rows, n_columns).
+         - axes_pad (tuple): Padding between each pannel. Must be given in a format of
+           (horizontal padding, vertical padding). Each padding can be specified by a number 
+           from zero to one.
+         - fig (matplotlib object): Figure object of matplotlib if you want to give by yourself.
+           AstroCanvas will generate if nothing is given.
+         - imagegrid (bool): Use ImageGrid of mpl_toolkits or not. It can be used for 
+           better spacing between pannels.
+         - cbar_mode (str): Only used when imagegrid=True to specify a colorbar mode. Must be
+           chosen from 'each', 'signle', 'edge', or None.
+         - cbaroptions (list or tuple): Only used when imagegrid=True to setup a colorbar(s).
+           Must be given in a format of [location, width, padding]. The location can be 'right', 'top'
+           'left', 'bottom'. The width and padding can be given as a percentage of the axis width
+           in str (e.g., '2%').
+         - label_mode (str): Only used when imagegrid=True to setup axes labels. Can be either of
+           'L', '1', or 'all'.
+         - figsize (tuple): Figure size. Default is (11.69, 8.27), which is A4 landscape.
+         - pltconfig (dict): Dictionary of matplotlib rcParams to change the plotting style.
         '''
         # style
         self.style(pltconfig)
@@ -79,7 +102,8 @@ class AstroCanvas():
             elif (nrow >= 1) & (ncol >= 1):
                 if imagegrid:
                     self.add_grid(nrow, ncol, 
-                        cbar_mode = cbar_mode, axes_pad = axes_pad)
+                        cbar_mode = cbar_mode, axes_pad = axes_pad,
+                        cbaroptions = cbaroptions, label_mode = label_mode)
                 else:
                     self.add_axes(nrow, ncol, 
                         wspace=axes_pad[0], hspace=axes_pad[1])
@@ -675,7 +699,7 @@ class AstroCanvas():
             add_beam(self.axes[(nrow-1)*ncol], bmaj, bmin, bpa, bcolor, loc='bottom left')
         # scalebar
         if len(scalebar) != 0:
-            add_scalebar(grid[(nrow-1)*ncol], scalebar)
+            add_scalebar(self.axes[(nrow-1)*ncol], scalebar)
         # colorbar
         if color and ax:
             cax, cbar = self.add_colorbar(imcolor, cbarlabel=cbarlabel,)
@@ -720,7 +744,8 @@ class AstroCanvas():
                 ratio: float or int
                     relative x axis width compared to y axis width.
             '''
-            aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0]) / (ax.get_ylim()[1] - ax.get_ylim()[0])
+            aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0])\
+             / (ax.get_ylim()[1] - ax.get_ylim()[0])
             aspect = np.abs(aspect)
             aspect = float(aspect)
             ax.set_aspect(aspect)
