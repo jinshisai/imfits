@@ -330,8 +330,8 @@ class AstroCanvas():
             xlabel = image.label_i[0]
             ylabel = image.label_i[1]
             cc    = image.cc
-            xaxis = xx_wcs[image.nx//2,:] # not exactly though
-            yaxis = yy_wcs[:, image.ny//2]
+            xaxis = image.xx_wcs[image.ny//2,:] # not exactly though
+            yaxis = image.yy_wcs[:, image.nx//2]
         else:
             cc    = image.cc
             xaxis = image.xaxis*3600.
@@ -363,7 +363,11 @@ class AstroCanvas():
 
 
         # meshgrid if needed
-        if exact_coord: xx, yy  = np.meshgrid(xaxis, yaxis)
+        if exact_coord:
+            if absolutecoords:
+                xx, yy = image.xx_wcs.copy(), image.yy_wcs.copy()
+            else:
+                xx, yy  = np.meshgrid(xaxis, yaxis)
 
 
         # set colorscale
@@ -434,6 +438,14 @@ class AstroCanvas():
         if outname: self.savefig(outname, transparent = transparent)
 
         return ax
+
+
+    def plot_vectors(self, image, iaxis=0, norm=1., pivot='mid', 
+        headwidth=1., headlength=0.001, width=0.01, color='red',):
+        add_vectors(image, self.axes[iaxis], norm=norm, pivot=pivot, 
+            headwidth=headwidth, headlength=headlength, 
+            width=width, color=color,)
+        return self.axes[iaxis]
 
 
     # Channel maps
@@ -513,8 +525,8 @@ class AstroCanvas():
             xlabel = image.label_i[0]
             ylabel = image.label_i[1]
             cc = image.cc
-            xaxis = xx_wcs[image.nx//2,:] # not exactly though
-            yaxis = yy_wcs[:, image.ny//2]
+            xaxis = image.xx_wcs[image.ny//2,:] # not exactly though
+            yaxis = image.yy_wcs[:, image.nx//2]
         else:
             #xx = self.xx*3600.
             #yy = self.yy*3600.
@@ -2094,6 +2106,22 @@ def add_box(ax, xc, yc, xl, yl, width=1., color='k',
     rect = patches.Rectangle((xc - xl*0.5, yc - yl*0.5), xl, yl, 
         ls=ls, color=color, fill=False, linewidth=width, zorder=zorder, angle=angle)
     ax.add_patch(rect)
+
+
+def add_vectors(image, ax, norm=1., pivot='mid', 
+    headwidth=1., headlength=0.001, width=0.01, color='red',):
+    if 'vectors' not in image.__dict__.keys():
+        print('ERROR\tadd_vectors: Vectors are not attached.')
+        return 0
+
+    f_norm = image.vectors[norm].values if type(norm) == str else norm
+    # u: minus sign is necessary cuz pa is defined as an angle from top to left.
+    u = - f_norm * np.sin(image.vectors.ANG*np.pi/180.)
+    v = f_norm * np.cos(image.vectors.ANG*np.pi/180.)
+    ax.quiver(image.vectors.delRA*3600., image.vectors.delDEC*3600., # x, y
+              u, v, pivot=pivot, headwidth=headwidth, headlength=headlength,
+              width = width, color=color)
+    return ax
 
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
