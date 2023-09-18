@@ -365,7 +365,7 @@ def _func_G93(xdata,*args):
 
 
 def lnfit2d(cube, p0, rfit=None, dist=140.,
- outname=None, outfig=True, axis=0):
+ outname=None, outfig=True, vaxis=0, saxis=0):
     '''
     Fit a two-dimensional linear function to a map by the least square fitting.
     Basically, the input map is assumed to be a velocity map and
@@ -382,13 +382,10 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
         print ('ERROR\tlnfit2d: Object type is not Imfits. Check the input.')
         return
 
-    data  = cube.data
-    xx    = cube.xx
-    yy    = cube.yy
+    data  = cube.data.copy()
+    xx    = cube.xx.copy() * 3600. # deg --> arcsec
+    yy    = cube.yy.copy() * 3600. # deg --> arcsec
     naxis = cube.naxis
-
-    xx = xx*3600. # deg --> arcsec
-    yy = yy*3600.
 
     # delta
     dx = np.abs(xx[0,1] - xx[0,0])
@@ -406,9 +403,9 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
     if naxis == 2:
         pass
     elif naxis == 3:
-        data = data[axis,:,:]
+        data = data[vaxis,:,:]
     elif naxis == 4:
-        data = data[0,axis,:,:]
+        data = data[saxis,vaxis,:,:]
     else:
         print ('Error\tmeasure_vgrad: Input fits size is not corrected.\
             It is allowed only to have 3 or 4 axes. Check the shape of the fits file.')
@@ -419,21 +416,21 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
     step = int(bmin/dx*0.5)
     ny, nx = xx.shape
     #print (step)
-    xx_fit = xx[0:ny:step, 0:nx:step]
-    yy_fit = yy[0:ny:step, 0:nx:step]
-    data_fit = data[0:ny:step, 0:nx:step]
+    xx_fit = xx[0:ny:step, 0:nx:step] if step >= 1 else xx
+    yy_fit = yy[0:ny:step, 0:nx:step] if step >= 1 else yy
+    data_fit = data[0:ny:step, 0:nx:step] if step >= 1 else data
     #print (data_fit.shape)
+    if step <= 0:
+        print('WARNING\tlnfit2d: Sampling given pixel and beam size is %i.'%step)
+        print('WARNING\tlnfit2d: Sampling step is less than zero.')
+        print('WARNING\tlnfit2d: Image might have not been well sampled.')
 
-
+    # fitting range
     if rfit:
         where_fit = np.where(rr <= rfit)
-        data_fit = data[where_fit]
-        xx_fit   = xx[where_fit]
-        yy_fit   = yy[where_fit]
-    else:
-        data_fit = data
-        xx_fit   = xx
-        yy_fit   = yy
+        data_fit = data_fit[where_fit]
+        xx_fit   = xx_fit[where_fit]
+        yy_fit   = yy_fit[where_fit]
 
 
     # exclude nan
