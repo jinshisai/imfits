@@ -52,7 +52,7 @@ class AstroCanvas():
         fig = None,
         imagegrid: bool = False,
         cbar_mode: str = None, 
-        cbaroptions = ['right', '2%', '0%'],
+        cbaroptions = ['right', '3%', '0%'],
         label_mode = '1',
         figsize: tuple = figsize_def,
         pltconfig: dict = pltconfig_def) -> None:
@@ -189,7 +189,7 @@ class AstroCanvas():
     def add_grid(self, nrow, ncol, 
         cbar_mode=None, axes_pad=(0., 0.), 
         share_all=True, 
-        cbaroptions=['right', '2%', '0%'], 
+        cbaroptions=['right', '3%', '0%'], 
         label_mode='1'):
         '''
         Generate grid to contain multiple figures. Just using ImageGrid of matplotlib but adjust default parameters for convenience.
@@ -985,11 +985,14 @@ class AstroCanvas():
         else:
             # to grid
             cax  = self.axes.cbar_axes[iaxis]
-            cbar = plt.colorbar(cim, cax=cax) # ticks=cbarticks
+            cbar = plt.colorbar(cim, cax=cax, 
+            orientation = orientations[self._gridkwargs['cbar_location']],
+            ticklocation = self._gridkwargs['cbar_location']) # ticks=cbarticks
             cax.toggle_label(True)
 
             if cbarlabel:
-                cbar.ax.set_ylabel(cbarlabel, color=labelcolor) # label
+                cbar.set_label(cbarlabel, color=labelcolor,)
+                #cbar.ax.set_ylabel(cbarlabel, color=labelcolor,) # label
 
         #cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, color=tickcolor,)
         return cax, cbar
@@ -2158,9 +2161,18 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
 
 
 def add_colorbar_togrid(cim, grid, cbarlabel: str='',
-    tickcolor: str = 'k', axiscolor: str = 'k', labelcolor: str = 'k'):
+    tickcolor: str = 'k', axiscolor: str = 'k', labelcolor: str = 'k',
+    cbar_loc = 'right'):
+    # parameter
+    orientations = {
+    'right': 'vertical',
+    'left': 'vertical',
+    'top': 'horizontal',
+    'bottom': 'horizontal'}
+
+    # plot
     cax  = grid.cbar_axes[0]
-    cbar = plt.colorbar(cim, cax=cax) # ticks=cbarticks
+    cbar = plt.colorbar(cim, cax=cax, orientation=orientations[cbar_loc]) # ticks=cbarticks
     cax.toggle_label(True)
     cbar.ax.yaxis.set_tick_params(color=tickcolor) # tick color
     cbar.ax.spines["bottom"].set_color(axiscolor)  # axes color
@@ -2168,6 +2180,7 @@ def add_colorbar_togrid(cim, grid, cbarlabel: str='',
     cbar.ax.spines["left"].set_color(axiscolor)
     cbar.ax.spines["right"].set_color(axiscolor)
 
+    # label
     if cbarlabel:
         cbar.ax.set_ylabel(cbarlabel,color=labelcolor) # label
     return cbar
