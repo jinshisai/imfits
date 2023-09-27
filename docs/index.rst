@@ -46,8 +46,10 @@ Contents
    tutorials/demo_channelmaps
    tutorials/demo_pvdiagram
 
+
+Known issues
+====================
 .. toctree::
    :maxdepth: 2
-   :caption: Known issues
 
    notes/known_issues
