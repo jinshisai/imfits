@@ -14,8 +14,7 @@ import astropy.wcs
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 import astropy.units as u
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import ImageGrid
+#import matplotlib.pyplot as plt
 
 
 ### Constants (in cgs)

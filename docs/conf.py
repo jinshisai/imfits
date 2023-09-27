@@ -15,7 +15,7 @@ release = 'v2.0.1'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 #extensions = []
-extensions = ['nbsphinx', 'nbsphinx']
+extensions = ['nbsphinx', 'nbsphinx', 'myst_parser']
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
