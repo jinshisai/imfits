@@ -35,12 +35,11 @@ The pip install is also available but 'git clone' & 'git pull' is recommended to
 
 
 
-Contents
+Tutorials
 ==================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Tutorials
 
    tutorials/demo_basic
    tutorials/demo_channelmaps
