@@ -45,3 +45,7 @@ Contents
    tutorials/demo_basic
    tutorials/demo_channelmaps
    tutorials/demo_pvdiagram
+
+   :caption: Known issues
+
+   notes/known_issues
