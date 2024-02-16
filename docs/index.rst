@@ -15,23 +15,27 @@ Imfits can also read fits files of position-velocity (PV) diagrams. The script i
 Installation
 =============
 
-You can get it using 'git clone'.
+The pip install is now available! For an easy installation, just type on your terminal
+
+::
+   
+   pip install imfits
+
+To update it, type
+
+::
+   
+   pip install -U imfits
+
+
+You can also get it using `git clone`.
 
 ::
 
    git clone https://github.com/jinshisai/imfits
 
 
-run 'git pull' in the imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module.
-
-
-The pip install is also available but 'git clone' & 'git pull' is recommended to catch up all updates. If you wish to use pip, type
-
-
-::
-   
-   pip install git+https://github.com/jinshisai/imfits
-
+Run `git pull` in the imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module.
 
 
 

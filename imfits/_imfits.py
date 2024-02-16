@@ -412,6 +412,8 @@ class Imfits():
         self.vaxis = vaxis
         self.delx  = delx
         self.delv  = delv
+        self.nx = len(xaxis)
+        self.nv = len(vaxis)
 
 
     def reorder_axes(self, order):
@@ -730,12 +732,12 @@ class Imfits():
         self.vectors.insert(self.vectors.columns.get_loc('DEC')+1, 'delRA', dra.value)
 
 
-    def getmoments(self, moment=[0], vrange=[], threshold=[],
+    def getmoments(self, moments=[0], vrange=[], threshold=[],
         outfits=True, outname=None, overwrite=False, i_stokes=0):
         '''
         Calculate moment maps.
 
-        moment (list): Index of moments that you want to calculate.
+        moments (list): Index of moments that you want to calculate.
         vrange (list): Velocity range to calculate moment maps.
         threshold (list): Threshold to clip data. Shoul be given as [minimum intensity, maximum intensity]
         outfits (bool): Output as a fits file?
@@ -796,15 +798,13 @@ class Imfits():
         w2 = np.sum(delv * data * delv * data, axis=0) # Sum_i w_i^2
         ndata = np.count_nonzero(data, axis=0)
 
-        if 0 in moment:
-            moments     = [mom0]
-            #moments_err = []
+        if 0 in moments:
+            out_moments = [mom0]
         else:
-            moments     = []
-            #moments_err = []
+            out_moments = []
 
         # moment 1
-        if any([i in [1,2] for i in moment ]):
+        if any([i in [1,2] for i in moments]):
             vtile = np.tile(vaxis, (nx, ny, 1))
             vtile = np.transpose(vtile, (2, 1, 0))
             mom1 = np.sum(data * vtile * delv, axis=0)/mom0
@@ -848,12 +848,12 @@ class Imfits():
 
             #moments_err.append(sig_mom1)
 
-            if any([i == 1 for i in moment]):
-                moments.append(mom1)
-                moments.append(sig_mom1)
+            if any([i == 1 for i in moments]):
+                out_moments.append(mom1)
+                out_moments.append(sig_mom1)
 
 
-        if any([i == 2 for i in moment]):
+        if any([i == 2 for i in moments]):
             vtile = np.tile(vaxis, (nx, ny, 1))
             vtile = np.transpose(vtile, (2, 1, 0))
             vmean = np.tile(mom1, (nchan, 1, 1))
@@ -866,19 +866,19 @@ class Imfits():
             sig_mom2 = np.sqrt(sig_mom2_sq)
 
             #moments_err.append(sig_mom2)
-            moments.append(mom2)
-            moments.append(sig_mom2)
+            out_moments.append(mom2)
+            out_moments.append(sig_mom2)
 
-        if 8 in moment:
+        if 8 in moments:
             mom8 = np.nanmax(data, axis=0)
-            moments.append(mom8)
+            out_moments.append(mom8)
 
         print ('Done.')
 
 
         # output
         #print (np.array(moments).shape)
-        print ('Output: Moment '+' '.join([str(moment[i]) for i in range(len(moment))])
+        print ('Output: Moments '+' '.join([str(moments[i]) for i in range(len(moments))])
             +' and thier error maps except for moment 0.')
 
         if outfits:
@@ -886,9 +886,9 @@ class Imfits():
             naxis = self.naxis
 
             if naxis == 3:
-                outmaps = np.array(moments)
+                outmaps = np.array(out_moments)
             elif naxis == 4:
-                outmaps = np.array([moments])
+                outmaps = np.array([out_moments])
             else:
                 print ('ERROR\tgetmoments: Input fits file must have 3 or 4 axes.')
                 return
@@ -902,7 +902,7 @@ class Imfits():
             hdout['CUNIT3'] = '       '
 
             hdout['HISTORY'] = 'Produced by getmoments of Imfits.'
-            hdout['HISTORY'] = 'Moments: '+' '.join([str(moment[i]) for i in range(len(moment))])
+            hdout['HISTORY'] = 'Moments: '+' '.join([str(moments[i]) for i in range(len(moments))])
 
             if outname:
                 pass
@@ -965,56 +965,44 @@ class Imfits():
             self.nx = len(self.xaxis)
             self.nv = len(self.vaxis)
             return 1
+
+        # cube
+        # spatially trim
         xlim = np.array(xlim)/3600. # arcsec --> deg
         ylim = np.array(ylim)/3600. # arcsec --> deg
+        yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
+        ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
+        self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
+        self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
+        self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
+        self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
+        self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
+        self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
+        self.nx = len(self.xaxis)
+        self.ny = len(self.yaxis)
         if self.naxis == 2:
-            yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
-            ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
             self.data    = self.data[yimin:yimax+1, ximin:ximax+1]
-            self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
-            self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
-            self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
-            self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
-            self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
-            self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
-            self.nx = len(self.xaxis)
-            self.ny = len(self.yaxis)
+            self.axes = np.array([self.xaxis, self.yaxis], dtype=object)
         elif self.naxis == 3:
             vimin, vimax = index_between(self.vaxis, vlim, mode='edge')[0]
-            yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
-            ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
             self.data    = self.data[vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
-            self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
-            self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
-            self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
-            self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
             self.vaxis   = self.vaxis[index_between(self.vaxis, vlim)]
-            self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
-            self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
-            self.nx = len(self.xaxis)
-            self.ny = len(self.yaxis)
             self.nv = len(self.vaxis)
+            self.axes = np.array([self.xaxis, self.yaxis, self.vaxis], dtype=object)
         elif self.naxis == 4:
             simin, simax = index_between(self.saxis, slim, mode='edge')[0]
             vimin, vimax = index_between(self.vaxis, vlim, mode='edge')[0]
-            yimin, yimax = index_between(self.yaxis, ylim, mode='edge')[0]
-            ximin, ximax = index_between(self.xaxis, xlim, mode='edge')[0]
             self.data    = self.data[simin:simax+1, vimin:vimax+1, yimin:yimax+1, ximin:ximax+1]
-            self.xx      = self.xx[yimin:yimax+1, ximin:ximax+1]
-            self.yy      = self.yy[yimin:yimax+1, ximin:ximax+1]
-            self.xx_wcs  = self.xx_wcs[yimin:yimax+1, ximin:ximax+1]
-            self.yy_wcs  = self.yy_wcs[yimin:yimax+1, ximin:ximax+1]
             self.saxis   = self.saxis[index_between(self.saxis, slim)]
             self.vaxis   = self.vaxis[index_between(self.vaxis, vlim)]
-            self.yaxis   = self.yaxis[index_between(self.yaxis, ylim)]
-            self.xaxis   = self.xaxis[index_between(self.xaxis, xlim)]
-            self.nx = len(self.xaxis)
-            self.ny = len(self.yaxis)
             self.nv = len(self.vaxis)
             self.ns = len(self.saxis)
+            self.axes = np.array([self.xaxis, self.yaxis, self.vaxis, self.saxis], dtype=object)
         else:
             print('trim_data: Invalid data shape.')
-            return -1
+            return 0
+
+        return 1
 
     def get_mapextent(self, unit='arcsec'):
         xaxis = self.xaxis
@@ -1089,3 +1077,198 @@ class Imfits():
         ci_rel = cc.spherical_offsets_to(ci)
         ra_out, dec_out = ci_rel[0].deg, ci_rel[1].deg
         return ra_out, dec_out
+
+
+    def sampling(self, steps: list, units = 'resolution'):
+        d = self.data.copy()
+        nd = len(d.shape)
+        nsteps = len(steps)
+
+        # input check
+        if nsteps > nd:
+            print('WARRING\tsampling: Dimension of steps is larger than \
+                the demension of the data.')
+            print('WARRING\tsampling: Only use first %i step values.'%nd)
+            steps = steps[:nd]
+        elif nsteps < 2:
+            print('ERROR\tsampling: steps must have at least two elements.')
+            return 0
+
+        # dimension
+        nsteps = len(steps) # renew
+        if nsteps == 2:
+            x_smpl, y_smpl = steps
+            v_smpl = 1
+            s_smpl = 1
+        elif nsteps == 3:
+            x_smpl, y_smpl, v_smpl = steps
+            s_smpl = 1
+        else:
+            x_smpl, y_smpl, v_smpl, s_smpl = steps
+
+        # if pvd
+        if self.ifpv == True:
+            if units == 'resolution':
+                x_smpl = int(self.res_off / x_smpl / self.delx )
+                y_smpl = int(1. / y_smpl)
+            elif units == 'pixel':
+                pass
+            elif units == 'absolute':
+                x_smpl = int(x_smpl / self.delx )
+                y_smpl = int(y_smpl /  self.delv)
+            else:
+                print('ERROR\tsampling: Input units key word is wrong.')
+                print('ERROR\tsampling: Must be resolution, pixel or absolute.')
+                return 0
+            self.data = np.squeeze(d)[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.vaxis   = self.vaxis[y_smpl//2::y_smpl]
+            self.xaxis   = self.xaxis[x_smpl//2::x_smpl]
+            self.delx = self.xaxis[1] - self.xaxis[0]
+            self.delv = self.vaxis[1] - self.vaxis[0]
+            self.nx = len(self.xaxis)
+            self.nv = len(self.vaxis)
+            return 1
+
+        # cube
+        if units == 'resolution':
+            res_off = self.beam[1] / 3600. # in deg
+            x_smpl = int(- res_off / x_smpl / self.delx ) if self.delx < 0. \
+            else int(res_off / x_smpl / self.delx )
+            y_smpl = int(res_off / y_smpl / self.dely )
+            v_smpl = int(1. / v_smpl)
+        elif units == 'pixel':
+            pass
+        elif units == 'absolute':
+            x_smpl = int(- x_smpl / self.delx ) if self.delx < 0. \
+            else int(x_smpl / self.delx )
+            y_smpl = int(y_smpl /  self.delv)
+            v_smpl = int(v_smpl / self.delv)
+        else:
+            print('ERROR\tsampling: Input units key word is wrong.')
+            print('ERROR\tsampling: Must be resolution, pixel or absolute.')
+            return 0
+
+        # sampling
+        self.xx      = self.xx[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+        self.yy      = self.yy[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+        self.xx_wcs  = self.xx_wcs[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+        self.yy_wcs  = self.yy_wcs[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+        self.yaxis   = self.yaxis[y_smpl//2::y_smpl]
+        self.xaxis   = self.xaxis[x_smpl//2::x_smpl]
+        self.nx = len(self.xaxis)
+        self.ny = len(self.yaxis)
+        self.delx = self.xaxis[1] - self.xaxis[0]
+        self.dely = self.yaxis[1] - self.yaxis[0]
+
+        if nd == 2:
+            self.data    = d[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.axes = np.array([self.xaxis, self.yaxis], dtype=object)
+        elif nd == 3:
+            self.data    = d[v_smpl//2::v_smpl, y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.vaxis   = self.vaxis[v_smpl//2::v_smpl]
+            self.nv = len(self.vaxis)
+            self.delv = self.vaxis[1] - self.vaxis[0]
+            self.axes = np.array([self.xaxis, self.yaxis, self.vaxis], dtype=object)
+        elif self.naxis == 4:
+            self.data    = d[s_smpl, v_smpl//2::v_smpl, y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.vaxis   = self.vaxis[v_smpl//2::v_smpl]
+            self.nv = len(self.vaxis)
+            self.delv = self.vaxis[1] - self.vaxis[0]
+            self.axes = np.array([self.xaxis, self.yaxis, self.vaxis, self.saxis], dtype=object)
+        else:
+            print('ERROR\tsampling: Invalid data shape.')
+            return 0
+
+        return 1
+
+
+    def update_hdinfo(self, vunit='freq'):
+        # dimension of data
+        self.naxis = len(self.data.shape)
+
+        # read data
+        if self.ifpv:
+            if vunit == 'velocity':
+                self.label_i[1] = 'VRAD'
+            else:
+                freq = ( 1. - self.vaxis * 1.e5 / clight ) * self.restfreq # km/s --> Hz
+                delv = freq[1] - freq[0]
+            refpix_i = [self.nx//2 + 1., 1.]
+            refval_i = [self.xaxis[self.nx//2], freq[0]]
+            naxis_i  = [self.nx, self.nv]
+            del_i = [self.delx, delv]
+
+            # stokes axis
+            if self.naxis == 3:
+                refpix_i.append(1.)
+                refval_i.append(1.)
+                naxis_i.append(1)
+                del_i.append(1.)
+        else:
+            # spatial axis
+            refpix_i = [self.nx//2 + 1., self.ny//2 + 1.]
+            refval_i = [
+            self.xx_wcs[self.ny//2, self.nx//2],
+            self.yy_wcs[self.ny//2, self.nx//2]
+            ]
+            naxis_i  = [self.nx, self.ny]
+            del_i = [self.delx, self.dely]
+
+            # velocity
+            if self.naxis >= 3:
+                if vunit == 'velocity':
+                    self.label_i[2] = 'VELO'
+                else:
+                    freq = ( 1. - self.vaxis * 1.e5 / clight ) * self.restfreq # km/s --> Hz
+                    delv = freq[1] - freq[0]
+                    refpix_i.append(1.)
+                    refval_i.append(freq[0])
+                    naxis_i.append(len(freq))
+                    del_i.append(delv)
+
+            # stokes
+            if self.naxis == 4:
+                refpix_i.append(1.)
+                refval_i.append(1.)
+                naxis_i.append(1)
+                del_i.append(1.)
+
+        # update
+        self.naxis_i  = naxis_i
+        self.refpix_i = refpix_i
+        self.refval_i = refval_i
+        self.del_i = del_i
+        return 1
+
+
+    def writeout(self, outname, comment = None, hdkeys = None, overwrite = False):
+        print('This function is under development. Might return a wrong result.')
+        print('Please use it with causion')
+
+        # import
+        from datetime import datetime
+
+        # header
+        hdout = self.header.copy()
+        self.update_hdinfo()
+
+        # write header
+        hdout['NAXIS'] = self.naxis
+        for i in range(self.naxis):
+            hdout['NAXIS%i'%(i+1)] = self.naxis_i[i]
+            hdout['CRVAL%i'%(i+1)] = self.refval_i[i]
+            hdout['CRPIX%i'%(i+1)] = self.refpix_i[i]
+            hdout['CDELT%i'%(i+1)] = self.del_i[i]
+
+        if comment is not None: hdout['COMMENT'] = comment
+
+        if hdkeys is not None:
+            for i in hdkeys.keys():
+                hdout[i] = hdkeys[i]
+
+        today = datetime.today().strftime('%Y-%m-%d')
+        hdout['HISTORY'] = today + ': written by imfits.'
+
+        fits.writeto(outname, self.data, header = hdout, overwrite = overwrite)
+
+        return 1
