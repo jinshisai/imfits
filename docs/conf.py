@@ -9,7 +9,7 @@
 project = 'imfits'
 copyright = '2023, Jinshi Sai'
 author = 'Jinshi Sai'
-release = 'v2.0.1'
+release = 'v2.2.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
