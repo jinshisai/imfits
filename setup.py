@@ -6,7 +6,7 @@ setup(
 	description='Read and handle fits files for astronomy easily.',
 	author='Jinshi Sai',
 	author_email='jn.insa.sai@gmail.com',
-	url='https://github.com/jinshisai/Imfits',
+	url='https://github.com/jinshisai/imfits',
 	packages=find_packages(),
 	classifiers=[
 	"Programming Language :: Python :: 3",

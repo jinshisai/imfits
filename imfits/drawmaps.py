@@ -836,7 +836,7 @@ class AstroCanvas():
             res_x = res_off
             res_y = delv
         else:
-            data   = data.T
+            data   = data.T # np.rot90(data)
             extent = (velmin,velmax,offmin,offmax)
             xlabel = vlabel
             ylabel = offlabel
