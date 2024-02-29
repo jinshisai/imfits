@@ -1170,7 +1170,7 @@ class Imfits():
             self.delv = self.vaxis[1] - self.vaxis[0]
             self.axes = np.array([self.xaxis, self.yaxis, self.vaxis], dtype=object)
         elif self.naxis == 4:
-            self.data    = d[s_smpl, v_smpl//2::v_smpl, y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.data    = d[s_smpl//2:s_smpl, v_smpl//2::v_smpl, y_smpl//2::y_smpl, x_smpl//2::x_smpl]
             self.vaxis   = self.vaxis[v_smpl//2::v_smpl]
             self.nv = len(self.vaxis)
             self.delv = self.vaxis[1] - self.vaxis[0]
@@ -1220,7 +1220,7 @@ class Imfits():
                     self.label_i[2] = 'VELO'
                 else:
                     freq = ( 1. - self.vaxis * 1.e5 / clight ) * self.restfreq # km/s --> Hz
-                    delv = freq[1] - freq[0]
+                    delv = freq[1] - freq[0] if self.naxis_i[2] > 1 else 1.
                     refpix_i.append(1.)
                     refval_i.append(freq[0])
                     naxis_i.append(len(freq))
