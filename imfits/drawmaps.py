@@ -25,7 +25,7 @@ import astropy.units as u
 pltconfig_def = {
 'xtick.direction': 'in',
 'ytick.direction': 'in',
-'font.size': '14',
+'font.size': '12',
 }
 
 pltconfig_darkbg = {
@@ -2084,6 +2084,35 @@ def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
 
     ax.hlines(loc_y, loc_x-length*0.5, loc_x+length*0.5, lw=width, color=color, zorder=zorder)
     ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=zorder)
+
+
+def add_sources(ax, image, coords, marker = 'cross', 
+    length=None, width=1., color='k', zorder=10., alpha = 1., 
+    frame = 'icrs', unit=(u.hour, u.deg), equinox='J2000'):
+    # check input
+    if type(coords) == str:
+        coords = [coords]
+    elif type(coords) == list:
+        pass
+    else:
+        print('ERROR\tadd_sources: coords must be str or list object.')
+        return 0
+
+    # image center
+    cc = SkyCoord(image.cc[0], image.cc[1], frame=image.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=image.equinox)
+    # plot
+    for coord in coords:
+        xc, yc = coord.split(' ')
+        c_plt  = SkyCoord(xc, yc, frame=frame.lower(), 
+            unit=unit, equinox=equinox)
+        x_plt, y_plt = cc.spherical_offsets_to(c_plt)
+        x_plt = x_plt.arcsec # deg to arcsec
+        y_plt = y_plt.arcsec # deg to arcsec
+
+        add_cross(ax, loc=(x_plt, y_plt), 
+            length=length, width=width, color=color,
+            zorder=zorder)
 
 
 def add_line(ax, length=None, pa=0., cent=(0,0), width=1., color='k',

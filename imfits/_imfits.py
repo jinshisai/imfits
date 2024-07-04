@@ -48,6 +48,13 @@ class Imfits():
 
         self.get_mapextent()
 
+    def __copy__(self):
+        obj = type(self).__new__(self.__class__)
+        obj.__dict__.update(self.__dict__)
+        return obj
+
+    def copy(self):
+        return self.__copy__()
 
     def read_coordinate_frame(self):
         header = self.header
@@ -1079,7 +1086,8 @@ class Imfits():
         return ra_out, dec_out
 
 
-    def sampling(self, steps: list, units = 'resolution'):
+    def sampling(self, steps: list, 
+        units = 'resolution', keep_center = True):
         d = self.data.copy()
         nd = len(d.shape)
         nsteps = len(steps)
@@ -1121,8 +1129,8 @@ class Imfits():
                 print('ERROR\tsampling: Must be resolution, pixel or absolute.')
                 return 0
             self.data = np.squeeze(d)[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
-            self.vaxis   = self.vaxis[y_smpl//2::y_smpl]
-            self.xaxis   = self.xaxis[x_smpl//2::x_smpl]
+            self.vaxis = self.vaxis[y_smpl//2::y_smpl]
+            self.xaxis = self.xaxis[x_smpl//2::x_smpl]
             self.delx = self.xaxis[1] - self.xaxis[0]
             self.delv = self.vaxis[1] - self.vaxis[0]
             self.nx = len(self.xaxis)
@@ -1149,31 +1157,35 @@ class Imfits():
             return 0
 
         # sampling
-        self.xx      = self.xx[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
-        self.yy      = self.yy[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
-        self.xx_wcs  = self.xx_wcs[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
-        self.yy_wcs  = self.yy_wcs[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
-        self.yaxis   = self.yaxis[y_smpl//2::y_smpl]
-        self.xaxis   = self.xaxis[x_smpl//2::x_smpl]
+        if keep_center:
+            x0, x1, y0, y1 = x_smpl//2, self.nx, y_smpl//2, self.ny
+        else:
+            x0, x1, y0, y1 = x_smpl//2 + 1, -1, y_smpl//2 + 1, -1
+        self.xx      = self.xx[y0:y1:y_smpl, x0:x1:x_smpl]
+        self.yy      = self.yy[y0:y1:y_smpl, x0:x1:x_smpl]
+        self.xx_wcs  = self.xx_wcs[y0:y1:y_smpl, x0:x1:x_smpl]
+        self.yy_wcs  = self.yy_wcs[y0:y1:y_smpl, x0:x1:x_smpl]
+        self.yaxis   = self.yaxis[y0:y1:y_smpl]
+        self.xaxis   = self.xaxis[x0:x1:x_smpl]
         self.nx = len(self.xaxis)
         self.ny = len(self.yaxis)
         self.delx = self.xaxis[1] - self.xaxis[0]
         self.dely = self.yaxis[1] - self.yaxis[0]
 
         if nd == 2:
-            self.data    = d[y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.data    = d[y0:y1:y_smpl, x0:x1:x_smpl]
             self.axes = np.array([self.xaxis, self.yaxis], dtype=object)
         elif nd == 3:
-            self.data    = d[v_smpl//2::v_smpl, y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.data    = d[v_smpl//2::v_smpl, y0:y1:y_smpl, x0:x1:x_smpl]
             self.vaxis   = self.vaxis[v_smpl//2::v_smpl]
             self.nv = len(self.vaxis)
-            self.delv = self.vaxis[1] - self.vaxis[0]
+            self.delv = self.vaxis[1] - self.vaxis[0] if self.nv > 1 else 1.
             self.axes = np.array([self.xaxis, self.yaxis, self.vaxis], dtype=object)
         elif self.naxis == 4:
-            self.data    = d[s_smpl//2:s_smpl, v_smpl//2::v_smpl, y_smpl//2::y_smpl, x_smpl//2::x_smpl]
+            self.data    = d[s_smpl//2:s_smpl, v_smpl//2::v_smpl, y0:y1:y_smpl, x0:x1:x_smpl]
             self.vaxis   = self.vaxis[v_smpl//2::v_smpl]
             self.nv = len(self.vaxis)
-            self.delv = self.vaxis[1] - self.vaxis[0]
+            self.delv = self.vaxis[1] - self.vaxis[0] if self.nv > 1 else 1.
             self.axes = np.array([self.xaxis, self.yaxis, self.vaxis, self.saxis], dtype=object)
         else:
             print('ERROR\tsampling: Invalid data shape.')

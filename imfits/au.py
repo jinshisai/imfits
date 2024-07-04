@@ -8,7 +8,7 @@ import scipy.optimize
 import matplotlib.pyplot as plt
 
 from imfits import Imfits
-
+from imfits.mapunit import IbeamTOjpp, IcgsTObeam, IbeamTOjpp
 
 
 # constant
@@ -697,3 +697,113 @@ def dropaxes(data, istokes=0, ivelocity=0):
     else:
         print('ERROR\tdropaxes: Data must be 2 to 4 dimensions.')
         return 0
+
+
+def generate_noisemap(rms, 
+    image = None, xx = None, yy = None,
+    beam = None,
+    ):
+    '''
+    Generate noise map.
+    Currently, only an imfits image input and Jy/beam unit is supported.
+
+    rms (float): rms of the noise map (Jy/beam)
+    image (imfits object): input image.
+    '''
+
+    shape = image.data.shape
+    ndim = len(shape)
+    beam = image.beam
+    delx, dely = image.delx, image.dely
+    xx, yy = image.xx, image.yy
+    ny, nx = xx.shape
+    xicent = nx // 2 - 1 + nx%2
+    yicent = ny // 2 - 1 +ny%2
+
+
+    if beam is not None:
+        from scipy.signal import convolve
+        bmaj, bmin, bpa = beam
+        f_beamtojpp = IbeamTOjpp(1., bmaj/3600., bmin/3600., delx, dely)
+
+        rms = rms * f_beamtojpp # Jy/beam --> Jy/pixel
+
+        # scaling to add noise before convolution
+        s_ang = np.pi / (4.*np.log(2.)) * bmaj * bmin / 3600. / 3600. # solid angle (deg^2)
+        ratio = s_ang / np.abs(delx*dely) # pixels
+        rms = rms * np.sqrt(ratio * 2.) # 2 is a scale factor for fine tuning
+        #print (ratio)
+
+        noise = np.random.normal(loc=0., scale=rms, size=(shape))
+
+        sigx = 0.5*bmin/np.sqrt(2.*np.log(2.))/3600.            # in degree
+        sigy = 0.5*bmaj/np.sqrt(2.*np.log(2.))/3600.            # in degree
+        area = 1.
+        gaussbeam = gaussian2D(xx, yy, 
+            area, xx[yicent, xicent], yy[yicent, xicent], sigx, sigy, pa = bpa)
+        gaussbeam /= np.sum(gaussbeam)
+
+        if ndim == 2:
+            pass
+        elif ndim == 3:
+            gaussbeam = np.array([gaussbeam])
+        elif ndim == 4:
+            gaussbeam = np.array([[gaussbeam]])
+
+        noise = convolve(noise, gaussbeam, mode='same')
+        noise /= f_beamtojpp # Jy/pixel to Jy/beam
+        #print(np.std(noise))
+    else:
+        noise = np.random.normal(loc=0., scale=rms, size=(shape))
+
+    return noise
+
+
+def bin_data(image, nbin, axes=[0]):
+    if nbin%2 == 0:
+        xx, yy = self.shift()
+    else:
+        xx, yy = self.xx.copy(), self.yy.copy()
+
+    xcut = self.nx%nbin
+    ycut = self.ny%nbin
+    _xx = xx[ycut//2:-ycut//2, xcut//2:-xcut//2]
+    _yy = yy[ycut//2:-ycut//2, xcut//2:-xcut//2]
+    xx_avg = np.array([
+        _xx[i::nbin, i::nbin]
+        for i in range(nbin)
+        ])
+    yy_avg = np.array([
+        _yy[i::nbin, i::nbin]
+        for i in range(nbin)
+        ])
+
+    return np.average(xx_avg, axis= 0), np.average(yy_avg, axis= 0)
+
+
+def binning_1d(axis, data, nbin,
+    axis_index = 0):
+    # length
+    nl = len(axis)
+    icut = nl%nbin
+    # shape
+    shape = data.shape
+    ndim = len(shape)
+
+    _axis = axis[icut//2:-icut//2]
+    if ndim == 1:
+        _data = data[icut//2:-icut//2]
+    elif ndim == 2:
+        _data = data[icut//2:-icut//2, :] if axis_index == 0 \
+        else data[:, icut//2:-icut//2]
+    elif ndim == 3:
+        if axis_index == 0:
+            _data = data[icut//2:-icut//2, :, :]
+        elif axis_index == 0:
+            _data = data[icut//2:-icut//2, :, :]
+    data_binned = np.array([
+        data[i::nbin]
+        for i in range(nbin)
+        ])
+
+    return 
