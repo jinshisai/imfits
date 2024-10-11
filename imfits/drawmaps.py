@@ -25,7 +25,7 @@ import astropy.units as u
 pltconfig_def = {
 'xtick.direction': 'in',
 'ytick.direction': 'in',
-'font.size': '14',
+'font.size': '12',
 }
 
 pltconfig_darkbg = {
@@ -271,7 +271,8 @@ class AstroCanvas():
         ccross=True, prop_cross=[None, 1., 'k'], 
         coord_center=None, aspect=1,
         interpolation=None, exact_coord=False,
-        iaxis=0, saxis=0, vaxis=0, inmode=None, data=None, outname=None):
+        iaxis=0, saxis=0, vaxis=0, inmode=None, data=None, outname=None,
+        transparent = True):
         '''
         Draw intensity map.
 
@@ -996,9 +997,6 @@ class AstroCanvas():
 
         #cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, color=tickcolor,)
         return cax, cbar
-
-
-
 
 
 
@@ -2086,6 +2084,35 @@ def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
     ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=zorder)
 
 
+def add_sources(ax, image, coords, marker = 'cross', 
+    length=None, width=1., color='k', zorder=10., alpha = 1., 
+    frame = 'icrs', unit=(u.hour, u.deg), equinox='J2000'):
+    # check input
+    if type(coords) == str:
+        coords = [coords]
+    elif type(coords) == list:
+        pass
+    else:
+        print('ERROR\tadd_sources: coords must be str or list object.')
+        return 0
+
+    # image center
+    cc = SkyCoord(image.cc[0], image.cc[1], frame=image.frame.lower(), 
+            unit=(u.deg, u.deg), equinox=image.equinox)
+    # plot
+    for coord in coords:
+        xc, yc = coord.split(' ')
+        c_plt  = SkyCoord(xc, yc, frame=frame.lower(), 
+            unit=unit, equinox=equinox)
+        x_plt, y_plt = cc.spherical_offsets_to(c_plt)
+        x_plt = x_plt.arcsec # deg to arcsec
+        y_plt = y_plt.arcsec # deg to arcsec
+
+        add_cross(ax, loc=(x_plt, y_plt), 
+            length=length, width=width, color=color,
+            zorder=zorder)
+
+
 def add_line(ax, length=None, pa=0., cent=(0,0), width=1., color='k',
     ls='-', alpha=1., zorder=10.):
     if length is None:
@@ -2186,12 +2213,14 @@ def add_colorbar_togrid(cim, grid, cbarlabel: str='',
     return cbar
 
 
-def add_colorbar_toaxis(ax, cim=None, 
+def add_colorbar_toaxis_old(ax, cim=None, 
     cbaroptions: list = [], cbarlabel = '',
     ticks: list = None, fontsize: float = None, 
     tickcolor: str = 'k', labelcolor: str = 'k'):
     '''
-    Add color bar to axes object.
+    An oloder version of add_colorbar_toaxis.
+    This old version uses divider.append_axes, which divides an axis into the main axis 
+    and a sub axis for the colorbar. This changes the aspect ratio of the main axis.
 
     Parameters:
      - ax (mpl axes object): axes.
@@ -2236,6 +2265,90 @@ def add_colorbar_toaxis(ax, cim=None,
     cbar = plt.colorbar(cim, cax=cax, ticks=ticks, 
         orientation=orientations[cbar_loc], ticklocation=cbar_loc)
     cbar.set_label(cbar_lbl, fontsize=fontsize, color=labelcolor,)
+    cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, 
+        color=tickcolor,)
+    return cax, cbar
+
+
+def add_colorbar_toaxis(ax, cim=None, 
+    loc = 'right', pad = '3%', width = '3%',
+    length = '100%', cbaroptions: list = None, 
+    cbarlabel = '', ticks: list = None, fontsize: float = None, 
+    tickcolor: str = 'k', labelcolor: str = 'k'):
+    '''
+    Add a colorbar to axis.
+
+    Parameters
+    ----------
+    loc (str): Location of the colorbar. Must be choosen from right, left, top or bottom.
+    pad (str or float): Pad between the image and colorbar. Must be given as percentage (e.g., '3%') or
+        fraction (e.g, 0.03) of the full plot width.
+    width (str or float): Width of the colorbar. Must be given as percentage or fraction of 
+        the full plot width.
+    length (str or float): Length of the colorbar. Must be given as percentage or fraction of 
+        the full plot width.
+    cbaroptions (list): Colorbar options which set location, pad, width all at once.
+    ticks (list): Ticks of colorbar. Optional parameter.
+    fontsize (float): Fontsize of the colorbar label and tick labels. Optional parameter.
+    tickcolor, labelcolor (str): Set tick and label colors.
+    '''
+    # parameters to set orientation
+    orientations = {
+    'right': 'vertical',
+    'left': 'vertical',
+    'top': 'horizontal',
+    'bottom': 'horizontal'}
+
+    # colorbar options
+    if cbaroptions is not None:
+        if len(cbaroptions) == 3:
+            cbar_loc, cbar_wd, cbar_pad = cbaroptions
+        elif len(cbaroptions) == 4:
+            cbar_loc, cbar_wd, cbar_pad, cbar_lbl = cbaroptions
+        else:
+            print('WARNING\tadd_colorbar_toaxis: cbaroptions must be a list object with three or four elements.')
+            print('WARNING\tadd_colorbar_toaxis: Input cbaroptions are ignored.')
+    else:
+        cbar_loc = loc
+        cbar_wd = width
+        cbar_pad = pad
+    # str to float
+    if type(cbar_wd) == str: cbar_wd = float(cbar_wd.strip('%')) * 0.01
+    if type(cbar_pad) == str: cbar_pad = float(cbar_pad.strip('%')) * 0.01
+    if type(length) == str: length = float(length.strip('%')) * 0.01
+
+    # check loc keyword
+    if cbar_loc not in orientations.keys():
+        print('ERROR\tadd_colorbar_toaxis: location keyword is wrong.')
+        print('ERROR\tadd_colorbar_toaxis: it must be choosen from right, left, top or bottom.')
+        return 0
+
+    # color image
+    if cim is not None:
+        pass
+    else:
+        try:
+            cim = ax.images[0] # assume the first one is a color map.
+        except:
+            print('ERROR\tadd_colorbar_toaxis: cannot find a color map.')
+            return 0
+
+    # set an inset axis
+    # x0 and y0 of bounds are lower-left corner
+    if cbar_loc == 'right':
+        bounds = [1.0 + cbar_pad, 0., cbar_wd, length] # x0, y0, dx, dy
+    elif cbar_loc == 'left':
+        bounds = [0. - cbar_pad - cbar_wd, 0., cbar_wd, length]
+    elif cbar_loc == 'top':
+        bounds = [0., 1. + cbar_pad, length, cbar_wd]
+    elif cbar_loc == 'bottom':
+        bounds = [0., 0. - cbar_pad - cbar_wd, length, cbar_wd]
+
+    # set a colorbar axis
+    cax = ax.inset_axes(bounds, transform=ax.transAxes)
+    cbar = plt.colorbar(cim, cax=cax, ticks=ticks, 
+        orientation=orientations[cbar_loc], ticklocation=cbar_loc)
+    cbar.set_label(cbarlabel)
     cbar.ax.tick_params(labelsize=fontsize, labelcolor=labelcolor, 
         color=tickcolor,)
     return cax, cbar
@@ -2325,3 +2438,32 @@ def add_scalebar(ax, scalebar: list, orientation='horizontal',
         ax.text(textx,texty,text,color=barcolor,fontsize=barcsize,horizontalalignment='center',verticalalignment='center')
     else:
         print ('ERROR\tadd_scalebar: scalebar must consist of 5 or 8 elements. Check scalebar.')
+
+
+
+def change_aspect_ratio(ax, ratio, plottype='linear'):
+    '''
+    This function change aspect ratio of figure.
+    Parameters:
+        ax: ax (matplotlit.pyplot.subplots())
+            Axes object
+        ratio: float or int
+            relative x axis width compared to y axis width.
+    '''
+    if plottype == 'linear':
+        aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0]) / (ax.get_ylim()[1] - ax.get_ylim()[0])
+    elif plottype == 'loglog':
+        aspect = (1/ratio) *(np.log10(ax.get_xlim()[1]) - np.log10(ax.get_xlim()[0])) / (np.log10(ax.get_ylim()[1]) - np.log10(ax.get_ylim()[0]))
+    elif plottype == 'linearlog':
+        aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0]) / np.log10(ax.get_ylim()[1]/ax.get_ylim()[0])
+    elif plottype == 'loglinear':
+        aspect = (1/ratio) *(np.log10(ax.get_xlim()[1]) - np.log10(ax.get_xlim()[0])) / (ax.get_ylim()[1] - ax.get_ylim()[0])
+    else:
+        print('ERROR\tchange_aspect_ratio: plottype must be choosen from the types below.')
+        print('   plottype can be linear or loglog.')
+        print('   plottype=loglinear and linearlog is being developed.')
+        return
+
+    aspect = np.abs(aspect)
+    aspect = float(aspect)
+    ax.set_aspect(aspect)

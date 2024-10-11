@@ -24,36 +24,42 @@ Website: [jinshisai.github.io](https://jinshisai.github.io)
 
 Install imfits
 ----
-You can get it using `git clone`.
+
+`pip` install is available now!
+
+```bash
+pip install imfits
+```
+
+To update it,
+
+```bash
+pip install -U imfits
+```
+
+You can also get it using `git clone`.
 
 ```bash
 git clone https://github.com/jinshisai/imfits
 ```
-run `git pull` in the Imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module.
 
-
-`pip` install is also available but `git clone` & `git pull` is recommended to catch up all updates. If you wish to use `pip`, type
-
-
-```bash
-pip install git+https://github.com/jinshisai/imfits
-```
+Run `git pull` in the imfits directory to make it up-to-date. Adding path in .bashrc (or .zshrc) is useful to call the module in this case.
 
 
 
 Use imfits
 ---------------
 
-Imfits read a fits file.
+The python class, Imfits, makes it reasy to read a fits file.
 
 ```python
 from imfits import Imfits
 
-infile   = 'fitsname.fits' # fits file
-fitsdata = Imfits(infile)  # Read information
+f   = 'fitsname.fits' # fits file
+im = Imfits(f)  # Read information
 ```
 
-Then, you can call the data and header information easily.
+You can call the data and header information easily.
 
 ```python
 data  = fitsdata.data  # Call data array
@@ -66,7 +72,7 @@ You can also draw maps calling `AstroCanvas` from `imfits.drawmaps`.
 ```python
 from imfits.drawmaps import AstroCanvas
 
-canvas = dm.AstroCanvas((1,1))
+canvas = AstroCanvas((1,1))
 canvas.intensitymap(im)
 canvas.savefig('outputname')
 plt.show()

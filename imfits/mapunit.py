@@ -123,6 +123,33 @@ def IcgsTOjpp(Icgs, px, py ,dist):
     return Ijpp
 
 
+def IcgsTObeam(Icgs,bmaj,bmin):
+    '''
+    Convert Intensity in cgs to in Jy/beam
+
+    Icgs: intensity in cgs unit [erg s-1 cm-2 Hz-1 str-1]
+    bmaj, bmin: FWHMs of beam major and minor axes [deg]
+    Ibeam: intensity in Jy/beam
+    '''
+    # beam unit
+    bmaj = bmaj*np.pi/180. # deg --> radian
+    bmin = bmin*np.pi/180. # deg --> radian
+
+    # cgs --> Jy/str
+    Imks = Icgs*1.e-7*1.e4   # cgs --> MKS
+    Istr = Imks*1.0e26       # MKS --> Jy/str, 1 Jy = 10^-26 Wm-2Hz-1
+
+    # Jy/sr -> Jy/beam(arcsec)
+    # beam          = thmaj*thmin (arcsec^2) = (a_to_rad)^2*thmaj*thmin (rad^2)
+    # Omg_beam (sr) = (pi/4ln(2))*beam (rad^2) = (pi/4ln2)*(a_to_rad)^2*thmaj*thmin
+    # I [Jy/beam]   = I [Jy/sr] * Omg_beam
+    C2              = np.pi/(4.*np.log(2.))
+    radTOarcsec     = (60.0*60.0*180.0)/np.pi
+    beam_th         = radTOarcsec*radTOarcsec/(C2*bmaj*bmin) # beam(sr) -> beam(arcsec), 1/beam_sr
+    Ibeam           = Istr/beam_th
+    return Ibeam
+
+
 # convert Jy/arcsec^2 --> Jy/beam
 def pas2TOpbm(Iin, px, py, bmaj, bmin):
     '''
