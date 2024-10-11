@@ -69,6 +69,7 @@ class Imfits():
             print('WARRING\tread_coordinate_frame: Cannot find the coordinate frame in the header.')
             print('WARRING\tread_coordinate_frame: ICRS is assumed. Input frame by hand to use another frame.')
             self.frame = 'icrs'
+            self.equinox = None
 
 
     def read_header(self, frame=None, 
@@ -919,7 +920,7 @@ class Imfits():
             #print (outmaps.shape)
             fits.writeto(outname, outmaps, header=hdout, overwrite=overwrite)
 
-        return moments
+        return out_moments
 
 
     # trim data to make it light

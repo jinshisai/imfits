@@ -348,44 +348,48 @@ def sky_deprojection(image, pa, inc,
     #data_reg *= np.nansum(data[np.where(np.abs(yyp) <= np.nanmax(yy))])/np.nansum(data_reg)
 
     return data_reg
-    
+
 
 # functions
 # 2D linear function
-def func_G93(del_ra, del_dec, v0, a, b):
+def lnfunc_G93(del_ra, del_dec, v0, a, b):
     # See Goodman et al. (1993)
-    vlsr = v0 + a*del_ra + b*del_dec
-    return vlsr
+    return v0 + a*del_ra + b*del_dec
 
-def _func_G93(xdata,*args):
-    del_ra, del_dec = xdata
-    #print (*args)
-    ans = func_G93(del_ra, del_dec, *args)
-    return ans
+def _lnfunc_G93(x, *args):
+    # See Goodman et al. (1993)
+    return lnfunc_G93(x[0], x[1], *args)
+
+def chi_lnfunc_G93(params, x, y, yerr):
+    return (y - lnfunc_G93(x[0], x[1], *params)) / yerr
 
 
-def lnfit2d(cube, p0, rfit=None, dist=140.,
- outname=None, outfig=True, vaxis=0, saxis=0):
+def lnfit2d(image, p0, rfit=None, dist=140.,
+    vaxis=0, saxis=0, sigma_axis = 1, sigma_map = None):
     '''
     Fit a two-dimensional linear function to a map by the least square fitting.
     Basically, the input map is assumed to be a velocity map and
      the measurement result will be treated as a velocity gradient.
     The fitting method is based on the one done by Goodman et al. (1993).
 
-    cube: fits file
+    Parameters:
+     image (Imfits): Imfits image data.
+     p0 (list): Initial guess of the fitting parameters
+     rfit (float): Radius on the plane of the sky in which the fitting is performed.
+     dist (float): Distance to the object.
+     vaxis (int):
     '''
 
     # check type
-    if type(cube) == Imfits:
+    if type(image) == Imfits:
         pass
     else:
         print ('ERROR\tlnfit2d: Object type is not Imfits. Check the input.')
         return
 
-    data  = cube.data.copy()
-    xx    = cube.xx.copy() * 3600. # deg --> arcsec
-    yy    = cube.yy.copy() * 3600. # deg --> arcsec
-    naxis = cube.naxis
+    xx = image.xx.copy() * 3600. # deg --> arcsec
+    yy = image.yy.copy() * 3600. # deg --> arcsec
+    naxis = image.naxis
 
     # delta
     dx = np.abs(xx[0,1] - xx[0,0])
@@ -393,7 +397,7 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
     #print (xx.shape)
 
     # beam
-    bmaj, bmin, bpa = cube.beam # as, as, deg
+    bmaj, bmin, bpa = image.beam # as, as, deg
 
     # radius
     rr = np.sqrt(xx*xx + yy*yy)
@@ -401,50 +405,79 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
 
     # check data axes
     if naxis == 2:
+        data = data.copy()
+        sigma = None
         pass
     elif naxis == 3:
-        data = data[vaxis,:,:]
+        nv, ny, nx = image.data.shape
+        data = image.data[vaxis,:,:].copy()
+        sigma = image.data[sigma_axis,:,:].copy() if sigma_axis <= nv else None
     elif naxis == 4:
-        data = data[saxis,vaxis,:,:]
+        ns, nv, ny, nx = image.data.shape
+        data = image.data[saxis,vaxis,:,:].copy()
+        sigma = image.data[saxis,sigma_axis,:,:].copy() if sigma_axis <= nv else None
     else:
         print ('Error\tmeasure_vgrad: Input fits size is not corrected.\
             It is allowed only to have 3 or 4 axes. Check the shape of the fits file.')
         return
 
+    if sigma_map is not None:
+        sigma = sigma_map
+
 
     # Nyquist sampling
+    R_beam2pix = np.pi/(4.*np.log(2.)) * bmaj * bmin \
+    / np.abs(dx * dy) # area ratio
+    '''
     step = int(bmin/dx*0.5)
     ny, nx = xx.shape
-    #print (step)
     xx_fit = xx[0:ny:step, 0:nx:step] if step >= 1 else xx
     yy_fit = yy[0:ny:step, 0:nx:step] if step >= 1 else yy
     data_fit = data[0:ny:step, 0:nx:step] if step >= 1 else data
-    #print (data_fit.shape)
     if step <= 0:
         print('WARNING\tlnfit2d: Sampling given pixel and beam size is %i.'%step)
         print('WARNING\tlnfit2d: Sampling step is less than zero.')
         print('WARNING\tlnfit2d: Image might have not been well sampled.')
+    '''
 
     # fitting range
     if rfit:
         where_fit = np.where(rr <= rfit)
-        data_fit = data_fit[where_fit]
-        xx_fit   = xx_fit[where_fit]
-        yy_fit   = yy_fit[where_fit]
+        data = data[where_fit]
+        xx   = xx[where_fit]
+        yy   = yy[where_fit]
 
 
     # exclude nan
-    xx_fit   = xx_fit[~np.isnan(data_fit)]
-    yy_fit   = yy_fit[~np.isnan(data_fit)]
-    data_fit = data_fit[~np.isnan(data_fit)]
-    #print (xx_fit)
+    where_nan = ~np.isnan(data)
+    xx   = xx[where_nan]
+    yy   = yy[where_nan]
+    data = data[where_nan]
 
+    # Re-format
+    xdata = np.vstack((xx.ravel(), yy.ravel()))
+    data = data.ravel()
 
-    # Ravel the meshgrids of X, Y points to a pair of 1-D arrays.
-    xdata = np.vstack((xx_fit, yy_fit)) # or xx.ravel()
+    # error
+    if sigma is not None:
+        absolute_sigma = True
+        #sigma_fit = sigma[0:ny:step, 0:nx:step] if step >= 1 else sigma
+        if rfit: sigma = sigma[where_fit]
+        sigma = sigma[where_nan]
+        sigma = sigma.ravel() * np.sqrt(R_beam2pix) # to correct oversampling
+    else:
+        absolute_sigma = False
+        print('CAUTION\tlnfit2d: No error map was provided.')
+        print('CAUTION\tlnfit2d: Parameter erros may not be correct.')
+
 
     # fitting
-    popt, pcov = scipy.optimize.curve_fit(_func_G93, xdata, data_fit, p0)
+    popt, pcov = scipy.optimize.curve_fit(_lnfunc_G93, xdata, data, p0,
+        sigma = sigma, absolute_sigma = absolute_sigma)
+    #res = scipy.optimize.leastsq(chi_lnfunc_G93, p0, 
+    #    args = (xdata, data, sigma),
+    #    full_output = True)
+    #popt, pcov = res[0], res[1]
     perr       = np.sqrt(np.diag(pcov))
     v0, a, b   = popt
     v0_err, a_err, b_err = perr
@@ -476,9 +509,12 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
 
 
     # output image for check
-    '''
+    #outname=None, 
+    '''outfig=True
     if outfig:
-        vlsr   = func_G93(xx,yy,*popt)
+        xx = image.xx.copy() * 3600. # deg --> arcsec
+        yy = image.yy.copy() * 3600. # deg --> arcsec
+        vlsr   = lnfunc_G93(xx,yy,*popt)
         xmin   = xx[0,0]
         xmax   = xx[-1,-1]
         ymin   = yy[0,0]
@@ -495,16 +531,16 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
         sinth = np.sin(th_vgrad*np.pi/180.)
         mrot = np.array([[costh, -sinth],
             [sinth, costh]])
-        p01 = np.array([0,60])
-        p02 = np.array([0,-60])
+        p01 = np.array([0,xmax])
+        p02 = np.array([0,-xmax])
         p01_rot = np.dot(p01,mrot)
         p02_rot = np.dot(p02,mrot)
         ax.plot([p01_rot[0],p02_rot[0]],[p01_rot[1],p02_rot[1]],ls='--',lw=1, c='k',sketch_params=0.5)
 
         # colorbar
-        divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
-        cax     = divider.append_axes('right','3%', pad='0%')
-        cbar    = fig.colorbar(im, cax = cax)
+        #divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
+        #cax     = divider.append_axes('right','3%', pad='0%')
+        cbar    = fig.colorbar(im, ax = ax)
         cbar.set_label(r'$\mathrm{km\ s^{-1}}$')
 
         # labels
@@ -512,12 +548,12 @@ def lnfit2d(cube, p0, rfit=None, dist=140.,
         ax.set_ylabel('DEC offset (arcsec)')
 
 
-        if outname:
-            pass
-        else:
-            outname = 'measure_vgrad_res'
-        plt.savefig(outname+'.pdf',transparent=True)
-        #plt.show()
+        #if outname:
+        #    pass
+        #else:
+        #    outname = 'measure_vgrad_res'
+        #plt.savefig(outname+'.pdf',transparent=True)
+        plt.show()
 
         return ax, popt, perr
     '''
