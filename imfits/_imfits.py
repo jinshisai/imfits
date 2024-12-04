@@ -21,6 +21,7 @@ import astropy.units as u
 clight     = 2.99792458e10 # light speed [cm s^-1]
 
 
+from .mapunit import IvTOJT, TbTOIv, pas2TOpbm, IvTOTex
 
 
 ### Imfits
@@ -687,7 +688,6 @@ class Imfits():
              TbtoIv -- Convert Tb to Iv
              pas2topbm --  Convert Jy/arcsec^2 to Jy/beam
         '''
-        from .mapunit import IvTOJT, TbTOIv, pas2TOpbm
 
         if conversion == 'IvtoTb':
             self.data = IvTOJT(self.data, self.restfreq, 
@@ -698,6 +698,9 @@ class Imfits():
         elif conversion == 'pas2topbm':
             self.data = pas2TOpbm(self.data, self.delx, 
                 self.dely, self.beam[0]/3600., self.beam[1]/3600.)
+        elif conversion == 'IvtoTex':
+            self.data = IvTOTex(self.data, self.restfreq, 
+                self.beam[0]/3600, self.beam[1]/3600.)
         else:
             print ('ERROR\tconvert_units: \
                 Currently supported conversions are\
@@ -1174,7 +1177,7 @@ class Imfits():
         self.dely = self.yaxis[1] - self.yaxis[0]
 
         if nd == 2:
-            self.data    = d[y0:y1:y_smpl, x0:x1:x_smpl]
+            self.data = d[y0:y1:y_smpl, x0:x1:x_smpl]
             self.axes = np.array([self.xaxis, self.yaxis], dtype=object)
         elif nd == 3:
             self.data    = d[v_smpl//2::v_smpl, y0:y1:y_smpl, x0:x1:x_smpl]

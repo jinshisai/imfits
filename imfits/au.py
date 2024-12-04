@@ -6,9 +6,12 @@ Analysis utilities for Imfits.
 import numpy as np
 import scipy.optimize
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+import scipy.ndimage
 
 from imfits import Imfits
 from imfits.mapunit import IbeamTOjpp, IcgsTObeam, IbeamTOjpp
+from .fitfuncs import fit_lnprof
 
 
 # constant
@@ -217,6 +220,100 @@ def get_1Dprofile(image, pa, average_side=False):
         return x, y
 
 
+def radial_profile(image, pa = None, 
+    inc = None, step = 'Nyquist', 
+    rmin = 0., rmax = None, delr = None,
+    return_all = False,):
+    '''
+    under development
+    '''
+    # sky deprojection
+    if (pa is not None) & (inc is not None):
+        data = sky_deprojection(image, pa, inc).ravel()
+    else:
+        data = np.squeeze(image.data).ravel()
+
+
+    xx, yy = image.xx * 3600., image.yy * 3600.
+    rr = np.sqrt(xx*xx + yy*yy).ravel()
+
+    # sampling
+    bmaj, bmin, bpa = image.beam
+    #beam_area =  np.pi/(4.*np.log(2.)) * bmaj * bmin
+
+    if rmax is None:
+        rmax = np.nanmax(rr)
+
+    rrange = rmax - rmin
+
+    if delr is None:
+        if step == 'Nyquist':
+            delr = 0.5 * bmin
+        else:
+            delr = bmin / step
+
+    r_bin_e = np.arange(rmin, rmax + delr, delr)
+    r_bin = 0.5 * (r_bin_e[1:] + r_bin_e[:-1])
+    nr = len(r_bin)
+
+
+    prof = np.zeros(nr)
+    e_prof = np.zeros(nr)
+    for i, ri in enumerate(r_bin):
+        indx = (rr >= r_bin_e[i]) * (rr < r_bin_e[i+1])
+        #print(np.count_nonzero(indx))
+        if np.count_nonzero(indx) >= 1:
+            prof[i] = np.nanmean(data[indx])
+            e_prof[i] = np.sqrt(np.nanvar(data[indx]))
+
+    if return_all:
+        d_sort = data[rr.argsort()]
+        r_sort = np.sort(rr)
+        return r_bin, prof, e_prof, r_sort, d_sort
+    else:
+        return r_bin, prof, e_prof
+
+
+def cs_radial_profile(image, pa = None, 
+    inc = None, step = 'Nyquist', return_all = False, npa = 361):
+    '''
+    under development
+    '''
+    # sky deprojection
+    if (pa is not None) & (inc is not None):
+        data = sky_deprojection(image, pa, inc)
+    else:
+        data = np.squeeze(image.data)
+
+    # circular slice
+    _, pa, cslice = _circular_slice(data, npa = npa,)
+    r = image.yaxis.copy() * 3600.
+    r = r[image.ny//2:]
+
+    # sampling
+    bmaj, bmin, bpa = image.beam
+    beam_area =  np.pi/(4.*np.log(2.)) * bmaj * bmin
+    if step == 'Nyquist':
+        step = int(0.5 * np.sqrt(beam_area) / image.dely / 3600.)
+    elif type(step) == int:
+        pass
+    else:
+        step = 1
+
+    # weighting for correcting over sampling in error calculations
+    circumference = r * np.pi
+    w_e = np.sqrt(
+    len(pa) / (circumference / np.sqrt(beam_area) / 2.))
+
+    # radial profile
+    prof = np.nanmean(cslice, axis = 1)[::step]
+    e_prof = np.sqrt(np.nanvar(cslice, axis = 1))[::step] #* w_e[::step]
+
+    if return_all:
+        return r[::step], pa, cslice[::step,:], w_e[::step], prof, e_prof
+    else:
+        return r[::step], prof, e_prof
+
 def imrotate(image, angle=0):
     '''
     Rotate the input image
@@ -260,34 +357,82 @@ def imrotate(image, angle=0):
     return newimage
 
 
+# function
+def imrotate_2d(d, angle=0.):
+    # check whether the array includes nan
+    # nan --> 0 for interpolation
+    if np.isnan(d).any() == False:
+        pass
+    elif np.isnan(d).any() == True:
+        #print ('CAUTION\timrotate: Input image array includes nan. Replace nan with 0 for interpolation when rotate image.')
+        d[np.isnan(d)] = 0.
+
+    # rotate image
+    newimage = scipy.ndimage.rotate(d, -angle, reshape=False)
+    return newimage
+
+
+def gaussian_cube_fit(image, rms, 
+    sampling = 'Nyquist', isaxis = 0,
+    save_as_fits = False, outname = None):
+    '''
+    Fit cube with Gaussian pixel by pixel
+    '''
+    cube = image.copy()
+
+    if sampling == 'Nyquist':
+        steps = [2,2]
+        cube.sampling(steps, units = 'resolution', keep_center = True)
+        cube.update_hdinfo()
+    elif type(sampling) is list:
+        cube.sampling(sampling, units = 'resolution', keep_center = True)
+        cube.update_hdinfo()
+    else:
+        pass
+
+
+    if cube.naxis == 3:
+        data = cube.data.copy()
+    elif cube.naxis == 4:
+        data = cube.data[isaxis, :, :, :]
+    nv, ny, nx = cube.nv, cube.ny, cube.nx
+
+    # output
+    pfit = np.empty((3, ny, nx))
+    e_pfit = np.empty((3, ny, nx))
+
+    for yi in range(ny):
+        for xi in range(nx):
+            speci = data[:, yi, xi]
+            ndata = len(speci[speci >= 3. * rms])
+            if ndata > 3:
+                popt, perr = fit_lnprof(cube.vaxis, speci, rms)
+            else:
+                popt, perr = [np.nan]*3, [np.nan]*3
+
+            pfit[:, yi, xi] = popt
+            e_pfit[:, yi, xi] = perr
+
+    if save_as_fits:
+        cube.data = pfit
+        cube.nv = 3
+        del cube.header['NAXIS4']
+        cube.writeout(outname)
+
+    return pfit, e_pfit
+
+
 
 def sky_deprojection(image, pa, inc,
-    inmode_data=False, xx=[], yy=[]):
+    inmode_data=False, xx=[], yy=[], 
+    method = 'cubic', conserve_flux = True):
     '''
     Deproject image from sky coordinates to local coordinates.
 
     Parameters
     ----------
     '''
-    # Modules
-    from scipy.interpolate import griddata
-    import scipy.ndimage
-    
-    # function
-    def imrotate_2d(d, angle=0.):
-        # check whether the array includes nan
-        # nan --> 0 for interpolation
-        if np.isnan(d).any() == False:
-            pass
-        elif np.isnan(d).any() == True:
-            #print ('CAUTION\timrotate: Input image array includes nan. Replace nan with 0 for interpolation when rotate image.')
-            d[np.isnan(d)] = 0.
 
-        # rotate image
-        newimage = scipy.ndimage.rotate(d, -angle, reshape=False)
-        return newimage
-
-    
     # Rotation angles
     rotdeg  = 90. - pa # 180. - pa
     rotrad  = np.radians(rotdeg)
@@ -314,8 +459,6 @@ def sky_deprojection(image, pa, inc,
     # right hand (clockwise) rotation will be positive in angles.
     xxp = xx*np.cos(rotrad) + yy*np.sin(rotrad)
     yyp = (- xx*np.sin(rotrad) + yy*np.cos(rotrad))/np.cos(incrad)
-    dxp = xxp[0,1] - xxp[0,0]
-    dyp = yyp[1,0] - yyp[0,0]
 
 
     # 2D --> 1D
@@ -325,18 +468,18 @@ def sky_deprojection(image, pa, inc,
     if naxis == 2:
         data_reg = imrotate_2d(
         griddata((xinp, yinp), data.reshape(data.size), 
-            (xx, yy), method='cubic',rescale=True), 
+            (xx, yy), method=method,rescale=True), 
         angle=-rotdeg)
     elif naxis == 3:
         data_reg = np.array([ imrotate_2d(
             griddata((xinp, yinp), data[i,:,:].reshape(data[i,:,:].size), 
-                (xx, yy), method='cubic',rescale=True), 
+                (xx, yy), method=method,rescale=True), 
             angle=-rotdeg)
             for i in range(data.shape[0])])
     elif naxis == 4:
         data_reg = np.array([[ imrotate_2d(
             griddata((xinp, yinp), data[i, j,:,:].reshape(data[i, j,:,:].size), 
-                (xx, yy), method='cubic',rescale=True), 
+                (xx, yy), method=method,rescale=True), 
             angle=-rotdeg)
             for j in range(data.shape[1]) ] for i in range(data.shape[0]) ])
     else:
@@ -344,8 +487,9 @@ def sky_deprojection(image, pa, inc,
         return 0
 
     # scaling for flux conservation
-    data_reg *= np.cos(incrad)
-    #data_reg *= np.nansum(data[np.where(np.abs(yyp) <= np.nanmax(yy))])/np.nansum(data_reg)
+    if conserve_flux:
+        data_reg *= np.cos(incrad)
+        #data_reg *= np.nansum(data[np.where(np.abs(yyp) <= np.nanmax(yy))])/np.nansum(data_reg)
 
     return data_reg
 
@@ -842,4 +986,90 @@ def binning_1d(axis, data, nbin,
         for i in range(nbin)
         ])
 
-    return 
+    return data_binned
+
+
+
+def _circular_slice(data, 
+    npa = 361., istokes=0, ifreq=0):
+    '''
+    Produce figure where position angle (x) vs radius (y) vs intensity (color)
+
+    Parameters
+    ----------
+    data (2D array): 2D image array
+    delt_pa (float): sampling step along pa axis (deg)
+    '''
+
+    pa = np.linspace(-180., 180., npa)
+
+    # check data axes
+    if len(data.shape) == 2:
+        pass
+    if len(data.shape) == 3:
+        data = data[istokes,:,:]
+    elif len(data.shape) == 4:
+        data = data[istokes,ifreq,:,:]
+    else:
+        print ('Error\tciruclar_slice: Input fits size is not corrected.\
+            It is allowed only to have 2 to 4 axes. Check the shape of the fits file.')
+        return
+
+    # set parameters
+    ny, nx = data.shape
+    y0, x0 = ny//2, nx//2
+    nz  = ny - y0
+    r = np.arange(0, nz, 1)
+
+    # start slicing
+    print ('circular slice...')
+    cslice = np.zeros([nz,npa])
+    for ipa in range(npa):
+        rotimage      = imrotate_2d(data, - pa[ipa])
+        cslice[:,ipa] = rotimage[y0:,x0]
+
+    return r, pa, cslice
+
+
+def circular_slice(image, 
+    npa = 361., istokes=0, ifreq=0):
+    '''
+    Produce figure where position angle (x) vs radius (y) vs intensity (color)
+
+    Parameters
+    ----------
+    image (Imfits object): Imfits object.
+    delt_pa (float): sampling step along pa axis (deg)
+    '''
+
+    pa = np.linspace(-180., 180., npa)
+
+    # check data axes
+    if len(image.data.shape) == 2:
+        data = image.data.copy()
+    if len(image.data.shape) == 3:
+        data = image.data[istokes,:,:]
+    elif len(data.shape) == 4:
+        data = image.data[istokes,ifreq,:,:]
+    else:
+        print ('Error\tciruclar_slice: Input fits size is not corrected.\
+            It is allowed only to have 2 to 4 axes. Check the shape of the fits file.')
+        return
+
+    # set parameters
+    ny, nx = data.shape
+    y0, x0 = ny//2, nx//2
+    nz  = ny - y0
+
+    # r axis
+    r = image.yaxis.copy() * 3600. # in arcsec
+    r = r[y0:]
+
+    # start slicing
+    print ('circular slice...')
+    cslice = np.zeros([nz,npa])
+    for ipa in range(npa):
+        rotimage      = imrotate_2d(data, - pa[ipa])
+        cslice[:,ipa] = rotimage[y0:,x0]
+
+    return pa, r, cslice

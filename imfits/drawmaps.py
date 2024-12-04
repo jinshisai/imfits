@@ -457,7 +457,7 @@ class AstroCanvas():
         xticks=[], yticks=[], vsys=None, scalebar=[],
         ccross=True, prop_cross=[None, 1., 'k'], bcolor='k', 
         cbarticks=None, coord_center=None, sbar_vertical=False,
-        vlabel_on=True, cbarlabel='',
+        vlabel_on=True, cbarlabel='', alpha = 1.,
         plotall=False, absolutecoords=False, plot_beam=True, txtcolor='k'):
         '''
         Draw channel maps.
@@ -626,7 +626,7 @@ class AstroCanvas():
                 imcolor = ax.imshow(Sv, 
                     cmap=cmap, origin='lower', 
                     extent=extent, norm=norm, 
-                    rasterized=True)
+                    rasterized=True, alpha = alpha)
             if contour:
                 imcont  = ax.contour(Sv, colors=ccolor, 
                     origin='lower',extent=extent, 
@@ -1323,7 +1323,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
     labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
     cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
     cbaroptions=np.array(['right','3%','0%']), inmode='fits', vlabel_on=True,
-    plotall=False):
+    plotall=False,):
     '''
     Make channel maps from a fits file.
 
