@@ -13,6 +13,7 @@ from astropy.io import fits
 import astropy.wcs
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
+import astropy.coordinates
 import astropy.units as u
 #import matplotlib.pyplot as plt
 
@@ -508,7 +509,7 @@ class Imfits():
 
 
     def shift_coord_center(self, coord_center, 
-        interpolate=False):
+        interpolate=False, zero_center = True):
         '''
         Shift the coordinate center.
 
@@ -551,16 +552,25 @@ class Imfits():
             # 2D --> 1D
             xinp     = xx_new.deg.reshape(xx_new.deg.size)
             yinp     = yy_new.deg.reshape(yy_new.deg.size)
+            # align the new coordinate center with the map center
+            x_org = np.array(range(self.nx), dtype = np.float64) - self.nx//2
+            x_org *= self.delx
+            y_org = np.array(range(self.ny), dtype = np.float64) - self.ny//2
+            y_org *= self.dely
+            xx_org, yy_org = np.meshgrid(x_org, y_org)
+            if zero_center is False:
+                x_org += self.delx * 0.5
+                y_org += self.dely * 0.5
             print('interpolating... May take time.')
             if self.naxis == 2:
                 data_reg = griddata((xinp, yinp), self.data.reshape(self.data.size), 
-                (self.xx, self.yy), method='cubic',rescale=True)
+                (xx_org, yy_org), method='cubic',rescale=True)
             elif self.naxis == 3:
                 data_reg = np.array([ griddata((xinp, yinp), self.data[i,:,:].reshape(self.data[i,:,:].size), 
-                    (self.xx, self.yy), method='cubic',rescale=True) for i in range(self.nv) ])
+                    (xx_org, yy_org), method='cubic',rescale=True) for i in range(self.nv) ])
             elif self.naxis == 4:
                 data_reg = np.array([[ griddata((xinp, yinp), self.data[i, j,:,:].reshape(self.data[i, j,:,:].size), 
-                    (self.xx, self.yy), method='cubic',rescale=True) 
+                    (xx_org, yy_org), method='cubic',rescale=True) 
                 for j in range(self.nv) ] for i in range(self.ns) ])
                 #print(data_reg.shape, self.data.shape)
             else:
@@ -570,8 +580,17 @@ class Imfits():
             self.cc = new_cent
             self.data = data_reg
             # World coordinate
-            self.xx_wcs += self.xx - xx_new.deg
-            self.yy_wcs += self.yy - yy_new.deg
+            wcs_new = cc_new.spherical_offsets_by(
+                astropy.coordinates.Angle(xx_org, unit = u.deg), 
+                astropy.coordinates.Angle(yy_org, unit = u.deg))
+            self.xx_wcs, self.yy_wcs = wcs_new.ra.degree, wcs_new.dec.degree
+            #self.xx_wcs  += self.xx - xx_new.deg
+            #self.yy_wcs += self.yy - yy_new.deg
+            # updated coordinates relative to new center
+            self.xx = xx_org #alpha
+            self.yy = yy_org #delta
+            self.xaxis = x_org
+            self.yaxis = y_org
         else:
             xcent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
             ycent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
@@ -613,7 +632,7 @@ class Imfits():
 
 
     def getrms_cube(self, vwindows=[[]], 
-        radius=None, saxis=0):
+        radius=None, saxis=0, mask = None):
         '''
         Calculate rms based on line free channels.
 
@@ -650,7 +669,7 @@ class Imfits():
             print('ERROR\trmsmap: Must be a list object.')
             return 0
 
-        if type(vwindows[0]) == float:
+        if (type(vwindows[0]) == float) | (type(vwindows[0]) == np.float64):
             indx = (vaxis >= vwindows[0]) & (vaxis < vwindows[1])
             d_masked = data[~indx, :, :]
         elif type(vwindows[0]) == list:
@@ -672,7 +691,14 @@ class Imfits():
                 _d[rr > radius] = np.nan
                 d_masked[i,:,:] = _d
 
+        if mask is not None:
+            for i in range(d_masked.shape[0]):
+                _d = d_masked[i,:,:]
+                _d[mask] = np.nan
+                d_masked[i,:,:] = _d
+
         # rms for each pannel
+        print(np.nanmean(d_masked * d_masked, axis=(1,2)))
         _rms = np.sqrt(np.nanmean(d_masked * d_masked, axis=(1,2)))
         return np.nanmean(_rms)
 
