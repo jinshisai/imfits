@@ -257,8 +257,9 @@ class AstroCanvas():
 
 
     def savefig(self, outname: str, 
-        ext : str = 'pdf', transparent: bool = True):
-        self.fig.savefig(outname + '.' + ext, transparent=transparent)
+        ext : str = 'pdf', transparent: bool = True, 
+        dpi = None):
+        self.fig.savefig(outname + '.' + ext, transparent=transparent, dpi = dpi)
 
 
     def intensitymap(self, image, imscale=[], 

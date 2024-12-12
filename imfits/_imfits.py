@@ -698,7 +698,6 @@ class Imfits():
                 d_masked[i,:,:] = _d
 
         # rms for each pannel
-        print(np.nanmean(d_masked * d_masked, axis=(1,2)))
         _rms = np.sqrt(np.nanmean(d_masked * d_masked, axis=(1,2)))
         return np.nanmean(_rms)
 

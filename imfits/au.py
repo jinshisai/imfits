@@ -25,6 +25,38 @@ pcTOcm = 3.09e18        # pc --> cm
 
 
 # Functions
+def match_images(image, ref_image,):
+    '''
+    Regrid an input image so that it matches the reference image grid.
+
+    Parameters
+    ----------
+    input (Imfits): Input image to be regridded.
+    reference (Imfits): Reference image.
+    '''
+
+    xx_ref = ref_image.xx.copy()
+    yy_ref = ref_image.yy.copy()
+
+    xinp = image.xx.ravel()
+    yinp = image.yy.ravel()
+
+    # interpolate
+    if image.naxis == 2:
+        data_reg = griddata((xinp, yinp), image.data.reshape(image.data.size), 
+        (xx_ref, yy_ref), method='cubic',rescale=True)
+    elif image.naxis == 3:
+        data_reg = np.array([ griddata((xinp, yinp), image.data[i,:,:].reshape(image.data[i,:,:].size), 
+            (xx_ref, yy_ref), method='cubic',rescale=True) for i in range(image.nv) ])
+    elif image.naxis == 4:
+        data_reg = np.array([[ griddata((xinp, yinp), image.data[i, j,:,:].reshape(image.data[i, j,:,:].size), 
+            (xx_ref, yy_ref), method='cubic',rescale=True) 
+        for j in range(image.nv) ] for i in range(image.ns) ])
+
+    return data_reg
+
+
+
 def getflux(image, rms=None, aptype='circle',
     r=None, semimaj = None, semimin=None, pa=None,
     istokes = 0, ivelocity=0, 
@@ -374,7 +406,8 @@ def imrotate_2d(d, angle=0.):
 
 def gaussian_cube_fit(image, rms, 
     sampling = 'Nyquist', isaxis = 0,
-    save_as_fits = False, outname = None):
+    save_as_fits = False, outname = None, 
+    overwrite = True, nthr = 3):
     '''
     Fit cube with Gaussian pixel by pixel
     '''
@@ -405,7 +438,7 @@ def gaussian_cube_fit(image, rms,
         for xi in range(nx):
             speci = data[:, yi, xi]
             ndata = len(speci[speci >= 3. * rms])
-            if ndata > 3:
+            if ndata > nthr:
                 popt, perr = fit_lnprof(cube.vaxis, speci, rms)
             else:
                 popt, perr = [np.nan]*3, [np.nan]*3
@@ -416,8 +449,11 @@ def gaussian_cube_fit(image, rms,
     if save_as_fits:
         cube.data = pfit
         cube.nv = 3
-        del cube.header['NAXIS4']
-        cube.writeout(outname)
+        if 'NAXIS4' in cube.header: del cube.header['NAXIS4']
+        cube.writeout(outname, overwrite = overwrite)
+
+        cube.data = e_pfit
+        cube.writeout(outname.replace('.fits', '_err.fits'), overwrite = overwrite)
 
     return pfit, e_pfit
 
@@ -549,7 +585,7 @@ def lnfit2d(image, p0, rfit=None, dist=140.,
 
     # check data axes
     if naxis == 2:
-        data = data.copy()
+        data = image.data.copy()
         sigma = None
         pass
     elif naxis == 3:
