@@ -7,6 +7,7 @@ imfits/astrconsts.py
 imfits/au.py
 imfits/deprojection.py
 imfits/drawmaps.py
+imfits/fitfuncs.py
 imfits/mapunit.py
 imfits.egg-info/PKG-INFO
 imfits.egg-info/SOURCES.txt
