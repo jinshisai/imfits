@@ -257,8 +257,9 @@ class AstroCanvas():
 
 
     def savefig(self, outname: str, 
-        ext : str = 'pdf', transparent: bool = True):
-        self.fig.savefig(outname + '.' + ext, transparent=transparent)
+        ext : str = 'pdf', transparent: bool = True, 
+        dpi = None):
+        self.fig.savefig(outname + '.' + ext, transparent=transparent, dpi = dpi)
 
 
     def intensitymap(self, image, imscale=[], 
@@ -274,8 +275,53 @@ class AstroCanvas():
         iaxis=0, saxis=0, vaxis=0, inmode=None, data=None, outname=None,
         transparent = True):
         '''
-        Draw intensity map.
+        Draw the intensity map.
 
+
+        Parameters
+        ----------
+        image (Imfits): Input image.
+        iaxis (int): Index of the AstroCanvas axes, i.e., index of the panel where you plot.
+        imscale (list): Extent of the plot. Must be given as [xmin, xmax, ymin, ymax],
+            where each parameter is the minimum or maximum value of the axis.
+        color (bool): If plot in color or not.
+        cmap (str): Color map.
+        colorbar (bool): If plot colorbar or not.
+        cbaroptions (list): Setting for colorbar. Must be give as [location, width, pad].
+            The location must be 'top', 'right', 'bottom', or 'left'. 
+            The width and padding can be specified by parcentage of the extent of the plot.
+            E.g., ['top', '3%', '3%'].
+        vmin, vmax (float): Minimun and maximun values of the color scale.
+        contour (bool): If plot with contours or not.
+        clevels (ndarray): Contour levels. Must be give as absolute values.
+        ccolor (str): Contour color.
+        clw (float): Contour widths
+        color_norm (str or tuple): Colorscale normalization. Default is linear.
+            Currently-supported formats are 'log', ('asinhstretch', a), or (func, func_inverse), 
+            where func1 and func2 are arbitoral functions which will determine 
+            the colorscale. For the last option, refer mpl.colors.FuncNorm for more details.
+        vaxis (int): Index of the 3rd (typically velocity) axis, if the input image is in three dimension.
+        saxis (int): Index of the 4th (typically stokes) axis, if the input image is in four dimension.
+        xticks, yticks (list): Ticks for x and y axis.
+        absolutecoords (bool): Make plots with absolute coordinates if True. 
+            This option is not fully supported, and may result in weired plot axes.
+        scalebar (list): Add scale bar. Must be given as [] or [].
+        plot_beam (bool): Plot observing beam or not.
+        bcolor (k): Color for the beam plot.
+        ccross (bool): If plot a cross at the map center or not.
+        prop_cross (list): Setting of the central cross. Must be give as [length, width, color].
+            E.g., [2., 2., 'k'].
+        coord_center (str): New coordinate center. Must be given in
+            a format of '00h00m00.00s +00d00m00.00s'.
+        aspect (float): Aspect ratio of the figure.
+        interpolation (str): Interpolation style for the color plot.
+        exact_coord (bool): If True, pcolor is used rather than imshow. It will return
+            correct results when grid spacing of the input image is not uniform.
+        inmode (str): If 'data', then array given in the 'data' parameter will be used for plot
+            while other info like plot extent is from the input image.
+        data (ndarray): Data to be plotted instead of the input Imfits image.
+        outname (str): If given, the figure will be saved with the output file name.
+        transparent (bool): Make the background transparent or not.
         '''
         # axis
         ax = self.axes[iaxis]
@@ -457,7 +503,7 @@ class AstroCanvas():
         xticks=[], yticks=[], vsys=None, scalebar=[],
         ccross=True, prop_cross=[None, 1., 'k'], bcolor='k', 
         cbarticks=None, coord_center=None, sbar_vertical=False,
-        vlabel_on=True, cbarlabel='',
+        vlabel_on=True, cbarlabel='', alpha = 1.,
         plotall=False, absolutecoords=False, plot_beam=True, txtcolor='k'):
         '''
         Draw channel maps.
@@ -626,7 +672,7 @@ class AstroCanvas():
                 imcolor = ax.imshow(Sv, 
                     cmap=cmap, origin='lower', 
                     extent=extent, norm=norm, 
-                    rasterized=True)
+                    rasterized=True, alpha = alpha)
             if contour:
                 imcont  = ax.contour(Sv, colors=ccolor, 
                     origin='lower',extent=extent, 
@@ -1323,7 +1369,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
     labelcolor='k',cbarlabel=None, txtcolor='k', bcolor='k', figsize=(11.69,8.27),
     cbarticks=None, coord_center=None, noreg=True, arcsec=True, sbar_vertical=False,
     cbaroptions=np.array(['right','3%','0%']), inmode='fits', vlabel_on=True,
-    plotall=False):
+    plotall=False,):
     '''
     Make channel maps from a fits file.
 
