@@ -19,6 +19,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+from astropy.visualization import make_lupton_rgb
 
 
 
@@ -964,6 +965,91 @@ class AstroCanvas():
         if outname: self.savefig(outname, transparent = transparent)
 
         return self.axes
+
+
+
+    def rgb_plot(self, image_r = None, image_g = None, image_b = None, 
+        reference = 'R', normalize = True, ftune_rgb = (1.,1., 1,), iaxis = 0,
+        stretch=0.5, scalebar = None
+        ):
+        # at least one image
+        if (image_r is None) * (image_b is None) * (image_g is None):
+            print('ERROR\trgb_plot: at least one of R, G, or B images must be provided.')
+            return 0
+
+        if (reference == 'R') | (reference == 'red'):
+            image_ref = image_r
+            image_1 = image_g
+            image_2 = image_b
+        elif (reference == 'G') | (reference == 'green'):
+            image_1 = image_r
+            image_ref = image_g
+            image_2 = image_b
+        elif (reference == 'B') | (reference == 'blue'):
+            image_1 = image_r
+            image_2 = image_g
+            image_ref = image_b
+        else:
+            print('ERROR\trgb_plot: reference must be R, G, B, red, green or blue.')
+            return 0
+
+
+        # reference image
+        data_ref = np.squeeze(image_ref.data)
+        ny, nx = data_ref.shape
+
+        # image 1
+        if image_1 is None:
+            data_1 = np.zeros((ny, nx))
+        else:
+            _ny, _nx = image_1.ny, image_1.nx
+            if (_ny == ny) * (_nx == nx):
+                data_1 = np.squeeze(image_1.data)
+            else:
+                data_1 = np.squeeze(
+                    au.match_images(image_1, image_ref))
+
+        # image 2
+        if image_2 is None:
+            data_2 = np.zeros((ny, nx))
+        else:
+            _ny, _nx = image_2.ny, image_2.nx
+            if (_ny == ny) * (_nx == nx):
+                data_2 = np.squeeze(image_2.data)
+            else:
+                data_2 = np.squeeze(
+                    au.match_images(image_2, image_ref))
+
+        # cast back to RGB
+        if (reference == 'R') | (reference == 'red'):
+            data_r, data_g, data_b = data_ref, data_1, data_2
+        elif (reference == 'G') | (reference == 'green'):
+            data_r, data_g, data_b = data_1, data_ref, data_2
+        elif (reference == 'B') | (reference == 'blue'):
+            data_r, data_g, data_b = data_1, data_2, data_ref
+
+        if normalize:
+            if image_r is not None: data_r *= ftune_rgb[0] / np.nanmax(data_r)
+            if image_g is not None: data_g *= ftune_rgb[1] / np.nanmax(data_g)
+            if image_b is not None: data_b *= ftune_rgb[2] / np.nanmax(data_b)
+
+        for d_i in [data_r, data_g, data_b]:
+            d_i[d_i < 0.] = 0. # remove minus
+
+
+        # image
+        image = make_lupton_rgb(data_r, data_g, data_b, stretch=stretch)
+
+        # plot
+        ax = self.axes[iaxis]
+        ax.imshow(image, extent = image_ref.get_mapextent(),
+            origin = 'lower', rasterized = True)
+
+        if scalebar is not None:
+            dm.add_scalebar(ax, scalebar, 
+                orientation='horizontal',)
+
+        return image
 
 
     def add_colorbar(self, 

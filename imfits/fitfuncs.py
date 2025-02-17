@@ -109,7 +109,8 @@ def chi_lnprof_gauss(param, v, d, derr, include_tau = False):
     return chi
 
 
-def fit_lnprof(x, y, yerr, pixrng=0, include_tau = False):
+def fit_lnprof(x, y, yerr, 
+    pixrng=0, include_tau = False, p0 = None):
     '''
     Perform fitting to determine the peak position.
     '''
@@ -131,14 +132,15 @@ def fit_lnprof(x, y, yerr, pixrng=0, include_tau = False):
         y_fit = y
 
     # set the initial parameter
-    #print (np.argmax(y_fit), x_fit[np.argmax(y_fit)])
-    mx   = x_fit[np.argmax(y_fit)]
-    amp  = np.nanmax(y_fit)
-    sigx = (x[1] - x[0]) * 3. #np.sqrt(np.nansum((mx - x_fit)**2. * y_fit) / np.nansum(y_fit))
-    if include_tau:
-        pinp = [amp, 1., mx, sigx]
-    else:
-        pinp = [amp, mx, sigx]
+    if p0 is None:
+        mx   = x_fit[np.nanargmax(y_fit)]
+        amp  = np.nanmax(y_fit)
+        sigx = (x[1] - x[0]) * 3. #np.sqrt(np.nansum((mx - x_fit)**2. * y_fit) / np.nansum(y_fit))
+        if include_tau:
+            pinp = [amp, 1., mx, sigx]
+        else:
+            pinp = [amp, mx, sigx]
+        #print('pinp', pinp)
 
     f_chi = lambda p, x, y, yerr,: chi_lnprof_gauss(p, x, y, yerr, include_tau = include_tau)
 

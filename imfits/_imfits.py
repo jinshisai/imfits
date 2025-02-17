@@ -247,9 +247,11 @@ class Imfits():
                 else:
                     print ('The third axis is ', self.label_i[2])
                     print ('Convert frequency to velocity')
-                    # frequency (Hz) --> radio velocity (km/s)
-                    vaxis = clight*(1.-vaxis/restfreq)*1.e-5
-
+                    if self.restfreq is None:
+                        vaxis = [1] * self.nv
+                    else:
+                        # frequency (Hz) --> radio velocity (km/s)
+                        vaxis = clight*(1.-vaxis/restfreq)*1.e-5
                 if len(vaxis) >= 2:
                     self.delv = vaxis[1] - vaxis[0]
                 else:
@@ -951,6 +953,19 @@ class Imfits():
         return out_moments
 
 
+    def get_momentzero_rms(self, rms_ch, vrange = None):
+        '''
+        Calculate theoretically expected rms of moment 0 map.
+        '''
+        if vrange is not None:
+            index = np.where( (self.vaxis >= vrange[0]) & (self.vaxis <= vrange[1]))
+            nv = len(self.vaxis[index])
+        else:
+            nv = self.nv
+
+        return rms_ch * self.delv * np.sqrt(nv)
+
+
     # trim data to make it light
     def trim_data(self,
         xlim: list = [],
@@ -1232,7 +1247,10 @@ class Imfits():
             if vunit == 'velocity':
                 self.label_i[1] = 'VRAD'
             else:
-                freq = ( 1. - self.vaxis * 1.e5 / clight ) * self.restfreq # km/s --> Hz
+                if self.restfreq is None:
+                    freq = [1] * self.nv
+                else:
+                    freq = ( 1. - self.vaxis * 1.e5 / clight ) * self.restfreq # km/s --> Hz
                 delv = freq[1] - freq[0]
             refpix_i = [self.nx//2 + 1., 1.]
             refval_i = [self.xaxis[self.nx//2], freq[0]]
