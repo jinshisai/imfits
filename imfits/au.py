@@ -270,8 +270,11 @@ def radial_profile(image, pa = None,
     rr = np.sqrt(xx*xx + yy*yy).ravel()
 
     # sampling
-    bmaj, bmin, bpa = image.beam
-    #beam_area =  np.pi/(4.*np.log(2.)) * bmaj * bmin
+    if image.beam is not None:
+        bmaj, bmin, bpa = image.beam
+        #beam_area =  np.pi/(4.*np.log(2.)) * bmaj * bmin
+    else:
+        bmaj, bmin, bpa = [None]*3
 
     if rmax is None:
         rmax = np.nanmax(rr)
@@ -309,7 +312,16 @@ def radial_profile(image, pa = None,
 def cs_radial_profile(image, pa = None, 
     inc = None, step = 'Nyquist', return_all = False, npa = 361):
     '''
-    under development
+    Calculate radial profile from a given image by taking azimuthal average.
+
+    Parameters
+    ----------
+     image (Imfits): Imfits image.
+     pa (float): Position angle of the object. Used to deproject image.
+     inc (float): Inclination angle of the object. Used to deproject image.
+     step (str or int): Sampling step. Default is Nyquist sampling. Step must be given in unit of pixel.
+     return_all (bool): Return all results if true.
+     npa (int): Number of bin along azimuthal direction. Default 361, resulting in 1deg step.
     '''
     # sky deprojection
     if (pa is not None) & (inc is not None):
@@ -325,6 +337,7 @@ def cs_radial_profile(image, pa = None,
     # sampling
     bmaj, bmin, bpa = image.beam
     beam_area =  np.pi/(4.*np.log(2.)) * bmaj * bmin
+    beam_area /= np.cos(np.radians(inc)) # take into account deprojection effect
     if step == 'Nyquist':
         step = int(0.5 * np.sqrt(beam_area) / image.dely / 3600.)
     elif type(step) == int:
@@ -335,7 +348,7 @@ def cs_radial_profile(image, pa = None,
     # weighting for correcting over sampling in error calculations
     circumference = r * np.pi
     w_e = np.sqrt(
-    len(pa) / (circumference / np.sqrt(beam_area) / 2.))
+    len(pa) / (2. * circumference / np.sqrt(beam_area)))
 
     # radial profile
     prof = np.nanmean(cslice, axis = 1)[::step]
@@ -489,6 +502,9 @@ def sky_deprojection(image, pa, inc,
         dy = image.dely
         naxis = image.naxis
 
+    # fill out nan with zero for interpolation
+    data[np.isnan(data)] = 0.
+
     # Rotation of the coordinate by pa,
     #   in which xprime = xcos + ysin, and yprime = -xsin + ycos
     # now, x axis is positive in the left hand direction (x axis is inversed).
@@ -545,7 +561,8 @@ def chi_lnfunc_G93(params, x, y, yerr):
 
 
 def lnfit2d(image, p0, rfit=None, dist=140.,
-    vaxis=0, saxis=0, sigma_axis = 1, sigma_map = None):
+    vaxis=0, saxis=0, sigma_axis = 1, sigma_map = None, 
+    full_output = False):
     '''
     Fit a two-dimensional linear function to a map by the least square fitting.
     Basically, the input map is assumed to be a velocity map and
@@ -601,6 +618,11 @@ def lnfit2d(image, p0, rfit=None, dist=140.,
             It is allowed only to have 3 or 4 axes. Check the shape of the fits file.')
         return
 
+
+    if full_output:
+        _data = data.copy() # save
+
+
     if sigma_map is not None:
         sigma = sigma_map
 
@@ -628,28 +650,31 @@ def lnfit2d(image, p0, rfit=None, dist=140.,
         yy   = yy[where_fit]
 
 
-    # exclude nan
-    where_nan = ~np.isnan(data)
-    xx   = xx[where_nan]
-    yy   = yy[where_nan]
-    data = data[where_nan]
-
-    # Re-format
-    xdata = np.vstack((xx.ravel(), yy.ravel()))
-    data = data.ravel()
-
     # error
     if sigma is not None:
         absolute_sigma = True
         #sigma_fit = sigma[0:ny:step, 0:nx:step] if step >= 1 else sigma
         if rfit: sigma = sigma[where_fit]
-        sigma = sigma[where_nan]
-        sigma = sigma.ravel() * np.sqrt(R_beam2pix) # to correct oversampling
+
+        # exclude nan
+        where_nan = np.isnan(data) | np.isnan(sigma)
+        xx   = xx[~where_nan].ravel()
+        yy   = yy[~where_nan].ravel()
+        data = data[~where_nan].ravel()
+        sigma = sigma[~where_nan].ravel()
+        sigma *= np.sqrt(R_beam2pix) # to correct oversampling
     else:
         absolute_sigma = False
+        # exclude nan
+        where_nan = np.isnan(data)
+        xx   = xx[~where_nan].ravel()
+        yy   = yy[~where_nan].ravel()
+        data = data[~where_nan].ravel()
         print('CAUTION\tlnfit2d: No error map was provided.')
         print('CAUTION\tlnfit2d: Parameter erros may not be correct.')
 
+
+    xdata = np.vstack([xx, yy])
 
     # fitting
     popt, pcov = scipy.optimize.curve_fit(_lnfunc_G93, xdata, data, p0,
@@ -738,7 +763,20 @@ def lnfit2d(image, p0, rfit=None, dist=140.,
         return ax, popt, perr
     '''
 
-    return v0, v0_err, vgrad, vgrad_err, th_vgrad, th_vgrad_err
+    if full_output:
+        # model
+        xx = image.xx.copy() * 3600. # deg --> arcsec
+        yy = image.yy.copy() * 3600. # deg --> arcsec
+        model = lnfunc_G93(xx,yy,*popt)
+        # residual
+        residual = _data - model
+        return {'popt': popt, 'perr': perr, 
+        'v0': v0, 'v0_err': v0_err,
+        'vgrad': vgrad, 'vgrad_err': vgrad_err,
+        'th_vgrad': th_vgrad, 'th_vgrad_err': th_vgrad_err,
+        'model': model, 'residual': residual}
+    else:
+        return v0, v0_err, vgrad, vgrad_err, th_vgrad, th_vgrad_err
 
 
 
