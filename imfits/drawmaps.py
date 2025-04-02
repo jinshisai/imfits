@@ -274,7 +274,7 @@ class AstroCanvas():
         coord_center=None, aspect=1,
         interpolation=None, exact_coord=False,
         iaxis=0, saxis=0, vaxis=0, inmode=None, data=None, outname=None,
-        transparent = True):
+        transparent = True, color_alpha = 1):
         '''
         Draw the intensity map.
 
@@ -430,11 +430,11 @@ class AstroCanvas():
         if color:
             if exact_coord:
                 imcolor = ax.pcolor(xx, yy, data, cmap=cmap, 
-                    norm=norm, shading='auto', rasterized=True)
+                    norm=norm, shading='auto', rasterized=True, alpha = color_alpha)
             else:
                 imcolor = ax.imshow(data, cmap=cmap, origin='lower', 
                     extent=extent, norm=norm, interpolation=interpolation, 
-                    rasterized=True)
+                    rasterized=True, alpha = color_alpha)
 
             # color bar
             if colorbar: self.add_colorbar(imcolor, iaxis=iaxis,

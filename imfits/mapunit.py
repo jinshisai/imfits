@@ -144,8 +144,8 @@ def IcgsTObeam(Icgs,bmaj,bmin):
     # Omg_beam (sr) = (pi/4ln(2))*beam (rad^2) = (pi/4ln2)*(a_to_rad)^2*thmaj*thmin
     # I [Jy/beam]   = I [Jy/sr] * Omg_beam
     C2              = np.pi/(4.*np.log(2.))
-    radTOarcsec     = (60.0*60.0*180.0)/np.pi
-    beam_th         = radTOarcsec*radTOarcsec/(C2*bmaj*bmin) # beam(sr) -> beam(arcsec), 1/beam_sr
+    #radTOarcsec     = (60.0*60.0*180.0)/np.pi
+    beam_th         = 1. / (C2*bmaj*bmin) # beam(sr) -> beam(arcsec), 1/beam_sr
     Ibeam           = Istr/beam_th
     return Ibeam
 
