@@ -1605,9 +1605,9 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 
     if (velmin is not None) & (velmax is not None):
         vlim = [velmin, velmax]
-    elif velmin:
+    elif velmin is not None:
         vlim = [velmin, np.nanmax(vaxis)+1.]
-    elif velmax:
+    elif velmax is not None:
         vlim = [np.nanmin(vaxis)-1., velmax]
     else:
         vlim = []
