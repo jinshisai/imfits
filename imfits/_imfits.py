@@ -33,8 +33,13 @@ class Imfits():
 
     def __init__(self, infile, pv=False, 
         frame=None, equinox='J2000', axesorder=(), 
-        velocity=True):
+        velocity=True, flip_vaxis = True, generate_empty_object = False):
         self.file = infile
+
+        # Generate empty Imfits object
+        if generate_empty_object:
+            return
+
         self.data, self.header = fits.getdata(infile, header=True)
 
         self.ifpv = pv
@@ -48,15 +53,22 @@ class Imfits():
                 velocity=velocity, equinox=equinox)
             self.get_coordinates()
 
+        if flip_vaxis:
+            if self.delv < 0:
+                self.flip_vaxis()
+
         self.get_mapextent()
+
 
     def __copy__(self):
         obj = type(self).__new__(self.__class__)
         obj.__dict__.update(self.__dict__)
         return obj
 
+
     def copy(self):
         return self.__copy__()
+
 
     def read_coordinate_frame(self):
         header = self.header
@@ -196,9 +208,9 @@ class Imfits():
 
         # x & y (RA & DEC)
         xaxis = axes[0]
-        xaxis = xaxis[:self.naxis_i[0]]                # offset, relative
+        xaxis = xaxis[:self.naxis_i[0]] # offset
         yaxis = axes[1]
-        yaxis = yaxis[:self.naxis_i[1]]                # offset, relative
+        yaxis = yaxis[:self.naxis_i[1]] # offset
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.delx = xaxis[1] - xaxis[0]
@@ -262,6 +274,27 @@ class Imfits():
 
         axes = np.array([xaxis, yaxis, vaxis, saxis], dtype=object)
         self.axes  = axes
+
+
+    def flip_vaxis(self):
+        '''
+        Flip the velocity axis. The order of axes is assumed to be (s, v, y, x).
+        Re-order axis first if this is not the case.
+        '''
+        self.vaxis = self.vaxis[::-1]
+        self.delv = self.vaxis[1] - self.vaxis[0]
+        if self.ifpv:
+            self.data = self.data[:,::-1]
+        else:
+            if self.naxis == 3:
+                self.data = self.data[::-1,:,:]
+            elif self.naxis == 4:
+                self.data = self.data[:, ::-1, :, :]
+            else:
+                print('ERROR\tflip_vaxis: NAXIS must be 3 or 4.')
+                print('ERROR\tflip_vaxis: Check axes of the input fits file.')
+                return 0
+
 
 
     # Read fits file of Poistion-velocity (PV) diagram
@@ -1054,6 +1087,7 @@ class Imfits():
             return 0
 
         return 1
+
 
     def get_mapextent(self, unit='arcsec'):
         xaxis = self.xaxis
