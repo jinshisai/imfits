@@ -16,6 +16,7 @@ from astropy.coordinates import SkyCoord
 import astropy.coordinates
 import astropy.units as u
 #import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 
 
 ### Constants (in cgs)
@@ -645,7 +646,6 @@ class Imfits():
         xx_new, yy_new = grid_new
 
         if interpolate:
-            from scipy.interpolate import griddata
             # 2D --> 1D
             xinp     = xx_new.deg.reshape(xx_new.deg.size)
             yinp     = yy_new.deg.reshape(yy_new.deg.size)
@@ -654,10 +654,11 @@ class Imfits():
             x_org *= self.delx
             y_org = np.array(range(self.ny), dtype = np.float64) - self.ny//2
             y_org *= self.dely
-            xx_org, yy_org = np.meshgrid(x_org, y_org)
-            if zero_center is False:
+            if (self.nx%2 == 0) & (zero_center is False):
                 x_org += self.delx * 0.5
+            if (self.ny%2 == 0) & (zero_center is False):
                 y_org += self.dely * 0.5
+            xx_org, yy_org = np.meshgrid(x_org, y_org)
             print('interpolating... May take time.')
             if self.naxis == 2:
                 data_reg = griddata((xinp, yinp), self.data.reshape(self.data.size), 
