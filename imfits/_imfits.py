@@ -33,7 +33,23 @@ class Imfits():
 
     def __init__(self, infile, pv=False, 
         frame=None, equinox='J2000', axesorder=(), 
-        velocity=True, flip_vaxis = True, generate_empty_object = False):
+        velocity=True, flip_vaxis = True, 
+        generate_empty_object = False,
+        beam_savetype = 'full', beam_index = 0):
+        '''
+        Read and save fits data and header information.
+
+
+        Parameters
+        ----------
+         infile (str): Path to the fits file.
+         pv (bool): If the input fits file is for the position-velocity image or not.
+         frame (str or None): Optional. Coordinate frame, 
+            which will be required if it is missing in the fits header.
+         equinox (str): Optional. Equinox of the coordinate frame. It will be used 
+            when the coordinate frame is Jxxxx and the equinox is missing in the header.
+         axesorder (tuple): An order of axes, if they need to be reordered.
+        '''
         self.file = infile
 
         # Generate empty Imfits object
@@ -50,11 +66,12 @@ class Imfits():
         else:
             self.read_header(frame=frame, 
                 axesorder=axesorder, 
-                velocity=velocity, equinox=equinox)
+                velocity=velocity, equinox=equinox,
+                beam_savetype = beam_savetype, beam_index = beam_index)
             self.get_coordinates()
 
-        if flip_vaxis:
-            if self.delv < 0:
+        if self.naxis >= 3:
+            if (flip_vaxis) * (self.delv < 0):
                 self.flip_vaxis()
 
         self.get_mapextent()
@@ -87,7 +104,8 @@ class Imfits():
 
 
     def read_header(self, frame=None, 
-        velocity=True, axesorder=(), equinox='J2000'):
+        velocity=True, axesorder=(), equinox='J2000',
+        beam_savetype = 'full', beam_index = 0):
         '''
         Get axes of a fits file. x axis and y axis will be in intermediate coordinates.
 
@@ -123,12 +141,18 @@ class Imfits():
         else:
             self.del_i = []
 
+
         # beam size (degree)
         if 'BMAJ' in header:
             bmaj     = header['BMAJ'] # degree
             bmin     = header['BMIN'] # degree
             bpa      = header['BPA']  # degree
             self.beam = np.array([bmaj*3600., bmin*3600., bpa]) # Get in arcsec
+        elif 'CASAMBM' in header:
+            self.multibeam = True
+            self.beam_savetype = beam_savetype
+            self.read_casa_multibeam(
+                savetype = beam_savetype, index = beam_index)
         else:
             self.beam = None
 
@@ -249,25 +273,31 @@ class Imfits():
 
             # to velocity
             if velocity:
+                print ('The third axis is ', self.label_i[2])
                 if any([i in self.label_i[2] for i in keys_velocity]):
-                    print ('The third axis is ', self.label_i[2])
+                    #print ('The third axis is ', self.label_i[2])
                     # m/s --> km/s
                     vaxis    = vaxis*1.e-3 # m/s --> km/s
                     #del_v    = del_v*1.e-3
                     #refval_v = refval_v*1.e-3
                     #vaxis    = vaxis*1.e-3
-                else:
-                    print ('The third axis is ', self.label_i[2])
+                elif self.label_i[2] == 'FREQ':
+                    #print ('The third axis is ', self.label_i[2])
                     print ('Convert frequency to velocity')
                     if self.restfreq is None:
                         vaxis = [1] * self.nv
                     else:
                         # frequency (Hz) --> radio velocity (km/s)
                         vaxis = clight*(1.-vaxis/restfreq)*1.e-5
+                else:
+                    print ('No conversion applied.')
+
                 if len(vaxis) >= 2:
                     self.delv = vaxis[1] - vaxis[0]
                 else:
                     self.delv = 1.
+        else:
+            self.delv = 1.
 
         self.vaxis = vaxis
         self.saxis = saxis
@@ -294,6 +324,38 @@ class Imfits():
                 print('ERROR\tflip_vaxis: NAXIS must be 3 or 4.')
                 print('ERROR\tflip_vaxis: Check axes of the input fits file.')
                 return 0
+
+
+    def read_casa_multibeam(self, 
+        savetype = 'full', index = 0):
+        '''
+        Read CASA Multibeam.
+        '''
+        hdul = fits.open(self.file)
+        bmaj = hdul['BEAMS'].data['BMAJ']
+        bmin = hdul['BEAMS'].data['BMIN']
+        bpa = hdul['BEAMS'].data['BPA']
+
+        if savetype == 'full':
+            self.beam = np.array([bmaj, bmin, bpa])
+        elif savetype == 'average':
+            bmaj = np.mean(bmaj)
+            bmin = np.mean(bmin)
+            bpa = np.mean(bpa)
+            self.beam = np.array([bmaj, bmin, bpa])
+        elif savetype == 'single':
+            bmaj = bmaj[index]
+            bmin = bmin[index]
+            bpa = bpa[index]
+            self.beam = np.array([bmaj, bmin, bpa])
+        else:
+            print('WARNING\tread_casa_multibeam: savetype must be full, average or single.')
+            print('WARNING\tread_casa_multibeam: save full beam sizes.')
+            self.beam = np.array([bmaj, bmin, bpa])
+
+        hdul.close()
+        self.beam_savetype = savetype
+
 
 
 
@@ -735,6 +797,27 @@ class Imfits():
         # rms for each pannel
         _rms = np.sqrt(np.nanmean(d_masked * d_masked, axis=(1,2)))
         return np.nanmean(_rms)
+
+
+    def binning(self, nbin, axis = 'velocity'):
+        '''
+        Bin data. Currently only axis = 'velocity' is supported.
+        '''
+        if axis == 'velocity':
+            if self.naxis == 3:
+                _d = np.array([
+                    self.data[i::nbin, :, :] for i in range(nbin)])
+                self.data = np.nanmean(_d, axis = 0)
+            elif self.naxis == 4:
+                _d = np.array([
+                    self.data[:, i::nbin, :, :] for i in range(nbin)])
+                self.data = np.nanmean(_d, axis = 0)
+            _v = np.array([self.vaxis[i::nbin] for i in range(nbin)])
+            self.vaxis = np.nanmean(_v, axis = 0)
+            delv = self.vaxis[1] - self.vaxis[0]
+        else:
+            print('ERROR\tbinning: currently only axis=velocity is supported.')
+            return 0
 
 
     def convert_units(self, conversion='IvtoTb'):
@@ -1334,8 +1417,10 @@ class Imfits():
         return 1
 
 
-    def writeout(self, outname, comment = None, hdkeys = None, overwrite = False):
+    def writeout(self, outname, 
+        comment = None, hdkeys = None, overwrite = False):
         print('This function is under development. Might return a wrong result.')
+        print('No multibeam output is currently supported.')
         print('Please use it with causion')
 
         # import
@@ -1361,6 +1446,15 @@ class Imfits():
 
         today = datetime.today().strftime('%Y-%m-%d')
         hdout['HISTORY'] = today + ': written by imfits.'
+
+        if self.multibeam:
+            if self.beam_savetype in ['average', 'single']:
+                hdout['BMAJ'] = self.beam[0] / 3600. # arcsec -> deg
+                hdout['BMIN'] = self.beam[1] / 3600. # arcsec -> deg
+                hdout['BPA'] = self.beam[2]
+            else:
+                print('WARNING\twriteout: Found multibeam.')
+                print('WARNING\twriteout: No beam info is included in the output fits file.')
 
         fits.writeto(outname, self.data, header = hdout, overwrite = overwrite)
 

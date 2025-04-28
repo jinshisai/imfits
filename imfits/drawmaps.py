@@ -2288,7 +2288,7 @@ def add_vectors(image, ax, norm=1., pivot='mid',
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
  bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.,
- zorder: float = 10., ):
+ zorder: float = 10., fill = True, ls = '-'):
     import matplotlib.patches as patches
 
     coords = {'bottom left': (0.1, 0.1),
@@ -2311,10 +2311,18 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
         print('ERROR\tplot_beam: must be strings or tuple with two elements.')
         return 0
 
+    # fill beam?
+    if fill:
+        fc = bcolor
+        ec = None
+    else:
+        fc = 'none'
+        ec = bcolor
+
     # plot
     bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
     beam = patches.Ellipse(xy=xy,
-        width=bmin_plot, height=bmaj_plot, fc=bcolor,
+        width=bmin_plot, height=bmaj_plot, fc=fc, ec=ec, ls = ls,
         angle=bpa, transform=ax.transAxes, alpha=alpha, zorder=zorder)
     ax.add_patch(beam)
 
