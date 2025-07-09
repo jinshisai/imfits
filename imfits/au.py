@@ -2,7 +2,7 @@
 Analysis utilities for Imfits.
 '''
 
-
+import copy
 import numpy as np
 import scipy.optimize
 import matplotlib.pyplot as plt
@@ -152,6 +152,65 @@ def getflux(image, rms=None, aptype='circle',
         return flux, e_flux
     else:
         return flux
+
+
+def get_contour_radius(image, 
+    rms, thr, showfig = True, savefig = False,
+    outname = None):
+    '''
+    Calculate radius from a contour curve.
+
+    Parameters
+    ----------
+     image (Imfits): Imfits object image.
+     rms (float): rms noise level of the map.
+     thr (float): Threshold to draw a contour curve. Should be given in a unit of rms.
+                  E.g., thr = 3 will draw a 3sigma contour and then calculate a mean radius.
+    '''
+    im = copy.deepcopy(image)
+    # mask data
+    d = np.squeeze(im.data.copy())
+    d[d < thr*rms] = np.nan
+    d[d >= thr*rms] = 1.
+    # intensity weighted mean (geometrical mean of 3sigma contour region)
+    ra_mn = np.nansum(image.xx_wcs * d)/np.nansum(d)
+    dec_mn = np.nansum(image.yy_wcs * d)/np.nansum(d)
+    cc = SkyCoord(ra_mn, dec_mn, unit=(u.deg, u.deg), frame='icrs')
+    cc_new = cc.to_string('hmsdms')
+    #print(cc_new)
+    im.shift_coord_center(cc_new)
+
+
+    # figure
+    fig, axes = plt.subplots(1, 2)
+    ax1, ax2 = axes
+
+    # get contour
+    cs = ax1.contour(im.xx * 3600., im.yy  * 3600., np.squeeze(im.data), [3.*rms])
+    p = cs.get_paths()[0]
+    v = p.vertices
+    x = v[:,0]
+    y = v[:,1]
+    # to check
+    ax1.plot(x, y, color='r', lw=2., alpha=0.7)
+
+    # takeing mean
+    r = np.sqrt(x*x + y*y) * dist
+    #r_mn = np.mean(r)
+    r_mn = np.median(r)
+    r_sig = np.std(r)
+    print('Core radius: %.2f +/- %.2f au'%(r_mn, r_sig))
+
+    ax2.hist(r)
+
+    if savefig:
+        fig.savefig(outname)
+
+    if showfig:
+        plt.show()
+    plt.close()
+
+    return r_mn, r_sig
 
 
 
@@ -362,6 +421,7 @@ def cs_radial_profile(image, pa = None,
         return r[::step], pa, cslice[::step,:], w_e[::step], prof, e_prof
     else:
         return r[::step], prof, e_prof
+
 
 def imrotate(image, angle=0):
     '''

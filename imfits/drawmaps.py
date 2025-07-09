@@ -2496,7 +2496,9 @@ def add_colorbar_toaxis(ax, cim=None,
 
 def add_scalebar(ax, scalebar: list, orientation='horizontal',
     loc: str = 'bottom right', barcolor: str = 'k', fontsize: float = 11.,
-    lw: float = 2., zorder: float = 10., alpha: float = 1.):
+    lw: float = 2., zorder: float = 10., alpha: float = 1.,
+    coordinate_mode = 'relative'):
+
     coords = {'bottom left': (0.1, 0.1),
             'bottom right': (0.9, 0.1),
             'top left': (0.1, 0.9),

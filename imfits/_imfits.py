@@ -149,6 +149,7 @@ class Imfits():
             bmin     = header['BMIN'] # degree
             bpa      = header['BPA']  # degree
             self.beam = np.array([bmaj*3600., bmin*3600., bpa]) # Get in arcsec
+            self.multibeam = False
         elif 'CASAMBM' in header:
             self.multibeam = True
             self.beam_savetype = beam_savetype
@@ -156,6 +157,7 @@ class Imfits():
                 savetype = beam_savetype, index = beam_index)
         else:
             self.beam = None
+            self.multibeam = False
 
 
         # rest frequency (Hz)
