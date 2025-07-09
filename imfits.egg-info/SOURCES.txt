@@ -1,9 +1,10 @@
 LICENSE
+MANIFEST.in
 README.md
+requirements.txt
 setup.py
 imfits/__init__.py
 imfits/_imfits.py
-imfits/astrconsts.py
 imfits/au.py
 imfits/deprojection.py
 imfits/drawmaps.py

@@ -274,7 +274,7 @@ class AstroCanvas():
         coord_center=None, aspect=1,
         interpolation=None, exact_coord=False,
         iaxis=0, saxis=0, vaxis=0, inmode=None, data=None, outname=None,
-        transparent = True):
+        transparent = True, color_alpha = 1):
         '''
         Draw the intensity map.
 
@@ -430,11 +430,11 @@ class AstroCanvas():
         if color:
             if exact_coord:
                 imcolor = ax.pcolor(xx, yy, data, cmap=cmap, 
-                    norm=norm, shading='auto', rasterized=True)
+                    norm=norm, shading='auto', rasterized=True, alpha = color_alpha)
             else:
                 imcolor = ax.imshow(data, cmap=cmap, origin='lower', 
                     extent=extent, norm=norm, interpolation=interpolation, 
-                    rasterized=True)
+                    rasterized=True, alpha = color_alpha)
 
             # color bar
             if colorbar: self.add_colorbar(imcolor, iaxis=iaxis,
@@ -1605,9 +1605,9 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
 
     if (velmin is not None) & (velmax is not None):
         vlim = [velmin, velmax]
-    elif velmin:
+    elif velmin is not None:
         vlim = [velmin, np.nanmax(vaxis)+1.]
-    elif velmax:
+    elif velmax is not None:
         vlim = [np.nanmin(vaxis)-1., velmax]
     else:
         vlim = []
@@ -2288,7 +2288,7 @@ def add_vectors(image, ax, norm=1., pivot='mid',
 
 def add_beam(ax, bmaj: float, bmin: float, bpa: float,
  bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.,
- zorder: float = 10., ):
+ zorder: float = 10., fill = True, ls = '-'):
     import matplotlib.patches as patches
 
     coords = {'bottom left': (0.1, 0.1),
@@ -2311,10 +2311,18 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
         print('ERROR\tplot_beam: must be strings or tuple with two elements.')
         return 0
 
+    # fill beam?
+    if fill:
+        fc = bcolor
+        ec = None
+    else:
+        fc = 'none'
+        ec = bcolor
+
     # plot
     bmin_plot, bmaj_plot = ax.transLimits.transform((0,bmaj)) - ax.transLimits.transform((bmin,0)) # data --> Axes coordinate
     beam = patches.Ellipse(xy=xy,
-        width=bmin_plot, height=bmaj_plot, fc=bcolor,
+        width=bmin_plot, height=bmaj_plot, fc=fc, ec=ec, ls = ls,
         angle=bpa, transform=ax.transAxes, alpha=alpha, zorder=zorder)
     ax.add_patch(beam)
 
@@ -2488,7 +2496,9 @@ def add_colorbar_toaxis(ax, cim=None,
 
 def add_scalebar(ax, scalebar: list, orientation='horizontal',
     loc: str = 'bottom right', barcolor: str = 'k', fontsize: float = 11.,
-    lw: float = 2., zorder: float = 10., alpha: float = 1.):
+    lw: float = 2., zorder: float = 10., alpha: float = 1.,
+    coordinate_mode = 'relative'):
+
     coords = {'bottom left': (0.1, 0.1),
             'bottom right': (0.9, 0.1),
             'top left': (0.1, 0.9),

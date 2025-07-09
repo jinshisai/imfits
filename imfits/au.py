@@ -2,7 +2,7 @@
 Analysis utilities for Imfits.
 '''
 
-
+import copy
 import numpy as np
 import scipy.optimize
 import matplotlib.pyplot as plt
@@ -152,6 +152,65 @@ def getflux(image, rms=None, aptype='circle',
         return flux, e_flux
     else:
         return flux
+
+
+def get_contour_radius(image, 
+    rms, thr, showfig = True, savefig = False,
+    outname = None):
+    '''
+    Calculate radius from a contour curve.
+
+    Parameters
+    ----------
+     image (Imfits): Imfits object image.
+     rms (float): rms noise level of the map.
+     thr (float): Threshold to draw a contour curve. Should be given in a unit of rms.
+                  E.g., thr = 3 will draw a 3sigma contour and then calculate a mean radius.
+    '''
+    im = copy.deepcopy(image)
+    # mask data
+    d = np.squeeze(im.data.copy())
+    d[d < thr*rms] = np.nan
+    d[d >= thr*rms] = 1.
+    # intensity weighted mean (geometrical mean of 3sigma contour region)
+    ra_mn = np.nansum(image.xx_wcs * d)/np.nansum(d)
+    dec_mn = np.nansum(image.yy_wcs * d)/np.nansum(d)
+    cc = SkyCoord(ra_mn, dec_mn, unit=(u.deg, u.deg), frame='icrs')
+    cc_new = cc.to_string('hmsdms')
+    #print(cc_new)
+    im.shift_coord_center(cc_new)
+
+
+    # figure
+    fig, axes = plt.subplots(1, 2)
+    ax1, ax2 = axes
+
+    # get contour
+    cs = ax1.contour(im.xx * 3600., im.yy  * 3600., np.squeeze(im.data), [3.*rms])
+    p = cs.get_paths()[0]
+    v = p.vertices
+    x = v[:,0]
+    y = v[:,1]
+    # to check
+    ax1.plot(x, y, color='r', lw=2., alpha=0.7)
+
+    # takeing mean
+    r = np.sqrt(x*x + y*y) * dist
+    #r_mn = np.mean(r)
+    r_mn = np.median(r)
+    r_sig = np.std(r)
+    print('Core radius: %.2f +/- %.2f au'%(r_mn, r_sig))
+
+    ax2.hist(r)
+
+    if savefig:
+        fig.savefig(outname)
+
+    if showfig:
+        plt.show()
+    plt.close()
+
+    return r_mn, r_sig
 
 
 
@@ -310,7 +369,8 @@ def radial_profile(image, pa = None,
 
 
 def cs_radial_profile(image, pa = None, 
-    inc = None, step = 'Nyquist', return_all = False, npa = 361):
+    inc = None, step = 'Nyquist', return_all = False, npa = 361,
+    pa_min = -180., pa_max = 180., istokes = None, ivelocity = None):
     '''
     Calculate radial profile from a given image by taking azimuthal average.
 
@@ -325,12 +385,15 @@ def cs_radial_profile(image, pa = None,
     '''
     # sky deprojection
     if (pa is not None) & (inc is not None):
-        data = sky_deprojection(image, pa, inc)
+        data = sky_deprojection(image, pa, inc,
+            istokes = istokes, ivelocity = ivelocity,
+            conserve_flux = False)
     else:
         data = np.squeeze(image.data)
 
     # circular slice
-    _, pa, cslice = _circular_slice(data, npa = npa,)
+    _, pa, cslice = _circular_slice(data, npa = npa,
+        pa_min = pa_min, pa_max = pa_max)
     r = image.yaxis.copy() * 3600.
     r = r[image.ny//2:]
 
@@ -346,7 +409,7 @@ def cs_radial_profile(image, pa = None,
         step = 1
 
     # weighting for correcting over sampling in error calculations
-    circumference = r * np.pi
+    circumference = r * np.pi * (pa_max - pa_min) / 180.
     w_e = np.sqrt(
     len(pa) / (2. * circumference / np.sqrt(beam_area)))
 
@@ -358,6 +421,7 @@ def cs_radial_profile(image, pa = None,
         return r[::step], pa, cslice[::step,:], w_e[::step], prof, e_prof
     else:
         return r[::step], prof, e_prof
+
 
 def imrotate(image, angle=0):
     '''
@@ -474,7 +538,8 @@ def gaussian_cube_fit(image, rms,
 
 def sky_deprojection(image, pa, inc,
     inmode_data=False, xx=[], yy=[], 
-    method = 'cubic', conserve_flux = True):
+    method = 'cubic', conserve_flux = True,
+    istokes = None, ivelocity = None):
     '''
     Deproject image from sky coordinates to local coordinates.
 
@@ -501,6 +566,20 @@ def sky_deprojection(image, pa, inc,
         dx = image.delx
         dy = image.dely
         naxis = image.naxis
+
+    if (naxis == 3) & (ivelocity is not None):
+        data = data[ivelocity,:,:]
+        naxis = 2
+    elif (naxis == 4):
+        if (istokes is not None) & (ivelocity is not None):
+            data = data[istokes, ivelocity, :,:]
+            naxis = 2
+        elif istokes is not None:
+            data = data[istokes, :, :,:]
+            naxis = 3
+        elif ivelocity is not None:
+            data = data[:,ivelocity,:,:]
+            naxis = 3
 
     # fill out nan with zero for interpolation
     data[np.isnan(data)] = 0.
@@ -1065,7 +1144,8 @@ def binning_1d(axis, data, nbin,
 
 
 def _circular_slice(data, 
-    npa = 361., istokes=0, ifreq=0):
+    npa = 361., istokes=0, ifreq=0,
+    pa_min = -180., pa_max = 180.):
     '''
     Produce figure where position angle (x) vs radius (y) vs intensity (color)
 
@@ -1075,12 +1155,12 @@ def _circular_slice(data,
     delt_pa (float): sampling step along pa axis (deg)
     '''
 
-    pa = np.linspace(-180., 180., npa)
+    pa = np.linspace(pa_min, pa_max, npa)
 
     # check data axes
     if len(data.shape) == 2:
         pass
-    if len(data.shape) == 3:
+    elif len(data.shape) == 3:
         data = data[istokes,:,:]
     elif len(data.shape) == 4:
         data = data[istokes,ifreq,:,:]

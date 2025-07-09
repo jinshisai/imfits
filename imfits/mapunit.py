@@ -71,10 +71,10 @@ def IvTOJT(Iv, nu0, bmaj, bmin):
     Calculate the equivalent brightness temperature from intensity in a unit of Jy/beam.
 
     Input
+    Iv: intensity [Jy/beam]
      nu0: rest frequency [Hz]
      bmaj: major beam size [deg]
      bmin: minor beam size [deg]
-     Iv: intensity [Jy/beam]
 
     Others
      C2: coefficient to convert beam to str
@@ -144,8 +144,8 @@ def IcgsTObeam(Icgs,bmaj,bmin):
     # Omg_beam (sr) = (pi/4ln(2))*beam (rad^2) = (pi/4ln2)*(a_to_rad)^2*thmaj*thmin
     # I [Jy/beam]   = I [Jy/sr] * Omg_beam
     C2              = np.pi/(4.*np.log(2.))
-    radTOarcsec     = (60.0*60.0*180.0)/np.pi
-    beam_th         = radTOarcsec*radTOarcsec/(C2*bmaj*bmin) # beam(sr) -> beam(arcsec), 1/beam_sr
+    #radTOarcsec     = (60.0*60.0*180.0)/np.pi
+    beam_th         = 1. / (C2*bmaj*bmin) # beam(sr) -> beam(arcsec), 1/beam_sr
     Ibeam           = Istr/beam_th
     return Ibeam
 
@@ -318,8 +318,8 @@ def Bv_Jybeam(T,v,bmaj,bmin):
     '''
 
     # units
-    bmaj = np.radians(bmaj) # arcsec --> radian
-    bmin = np.radians(bmin) # arcsec --> radian
+    bmaj = np.radians(bmaj) # deg --> radian
+    bmin = np.radians(bmin) # deg --> radian
 
     # coefficient for unit convertion
     # Omg_beam (sr) = (pi/4ln(2))*beam (rad^2)
