@@ -6,6 +6,7 @@ import copy
 import numpy as np
 import scipy.optimize
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
 from scipy.interpolate import griddata
 import scipy.ndimage
 
