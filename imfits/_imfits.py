@@ -809,7 +809,13 @@ class Imfits():
 
     def binning(self, nbin, axis = 'velocity'):
         '''
-        Bin data. Currently only axis = 'velocity' is supported.
+        Rebin data.
+
+        Parameters
+        ----------
+        nbin (int): Binning factor. E.g., if nbin = 3, original three pixels will be
+         binned into a single pixel.
+        axis (str): 'velocity' or 'xy'.
         '''
         if (axis == 'velocity') | (axis == 'v'):
             self.binning_v(nbin)
@@ -822,7 +828,7 @@ class Imfits():
 
     def binning_v(self, nbin,):
         '''
-        Bin data. Currently only axis = 'velocity' is supported.
+        Rebin data along velocity or frequency axis.
         '''
         nv = self.nv
         ncut = nv%nbin
@@ -848,7 +854,7 @@ class Imfits():
 
     def binning_xy(self, nbin,):
         '''
-        Bin data. Currently only axis = 'velocity' is supported.
+        Rebin data in the xy spatial plane.
         '''
         nx, ny = self.nx, self.ny
         if type(nbin) == int:
