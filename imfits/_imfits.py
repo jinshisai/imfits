@@ -24,7 +24,7 @@ clight     = 2.99792458e10 # light speed [cm s^-1]
 
 
 from .mapunit import IvTOJT, TbTOIv, pas2TOpbm, IvTOTex
-
+from . import iu
 
 ### Imfits
 class Imfits():
@@ -335,6 +335,7 @@ class Imfits():
         Read CASA Multibeam.
         '''
         hdul = fits.open(self.file)
+        print(hdul.info())
         bmaj = hdul['BEAMS'].data['BMAJ']
         bmin = hdul['BEAMS'].data['BMIN']
         bpa = hdul['BEAMS'].data['BPA']
@@ -692,8 +693,12 @@ class Imfits():
             self.xaxis = x_org
             self.yaxis = y_org
         else:
-            xcent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
-            ycent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
+            #print(xx_new.shape)
+            #print(self.nx, len(np.argmin(np.abs(yy_new.deg), axis=0)))
+            #print(self.ny, len(np.argmin(np.abs(xx_new.deg), axis=1)))
+            ycent_indx = np.argmin(np.abs(yy_new), axis=0)[self.nx//2]
+            xcent_indx = np.argmin(np.abs(xx_new), axis=1)[self.ny//2]
+            #print(xcent_indx, ycent_indx)
 
             # update
             self.xx = xx_new.deg #alpha
@@ -806,21 +811,127 @@ class Imfits():
         '''
         Bin data. Currently only axis = 'velocity' is supported.
         '''
-        if axis == 'velocity':
-            if self.naxis == 3:
-                _d = np.array([
-                    self.data[i::nbin, :, :] for i in range(nbin)])
-                self.data = np.nanmean(_d, axis = 0)
-            elif self.naxis == 4:
-                _d = np.array([
-                    self.data[:, i::nbin, :, :] for i in range(nbin)])
-                self.data = np.nanmean(_d, axis = 0)
-            _v = np.array([self.vaxis[i::nbin] for i in range(nbin)])
-            self.vaxis = np.nanmean(_v, axis = 0)
-            delv = self.vaxis[1] - self.vaxis[0]
+        if (axis == 'velocity') | (axis == 'v'):
+            self.binning_v(nbin)
+        elif axis == 'xy':
+            self.binning_xy(nbin)
         else:
-            print('ERROR\tbinning: currently only axis=velocity is supported.')
+            print('ERROR\tbinning: axis must be xy or v.')
             return 0
+
+
+    def binning_v(self, nbin,):
+        '''
+        Bin data. Currently only axis = 'velocity' is supported.
+        '''
+        nv = self.nv
+        ncut = nv%nbin
+        if self.naxis == 3:
+            d = self.data[:nv-ncut,:,:]
+            _d = np.array([
+                d[i::nbin, :, :] for i in range(nbin)])
+            self.data = np.nanmean(_d, axis = 0)
+        elif self.naxis == 4:
+            d = self.data[:,:nv-ncut,:,:]
+            _d = np.array([
+                d[:, i::nbin, :, :] for i in range(nbin)])
+            self.data = np.nanmean(_d, axis = 0)
+        else:
+            print('ERROR\tbinning_v: naxis must be 3 or 4.')
+            return 0
+        v = self.vaxis[:nv-ncut]
+        _v = np.array([v[i::nbin] for i in range(nbin)])
+        self.vaxis = np.nanmean(_v, axis = 0)
+        self.delv = self.vaxis[1] - self.vaxis[0]
+        self.nv = len(self.vaxis)
+
+
+    def binning_xy(self, nbin,):
+        '''
+        Bin data. Currently only axis = 'velocity' is supported.
+        '''
+        nx, ny = self.nx, self.ny
+        if type(nbin) == int:
+            nxbin = nbin
+            nybin = nbin
+            nxcut = nx%nbin
+            nycut = ny%nbin
+        elif (type(nbin) == list) | (type(nbin) == tuple):
+            nxbin, nybin = nbin
+            nxcut = nx%nxbin
+            nycut = ny%nybin
+        else:
+            print('ERROR\tbinning_xy: input nbin type is wrong.')
+            print('ERROR\tbinning_xy: nbin must be int, or list or tuple having two elements.')
+            return 0
+
+
+        if (nxcut != 0):
+            print('CAUTION\tbinning_xy: nx is not a multiple of nbin.')
+            print('CAUTION\tbinning_xy: remaining pixels are cut off.')
+            print('CAUTION\tbinning_xy: image center could shift.')
+        if (nycut != 0):
+            print('CAUTION\tbinning_xy: ny is not a multiple of nbin.')
+            print('CAUTION\tbinning_xy: remaining pixels are cut off.')
+            print('CAUTION\tbinning_xy: image center could shift.')
+
+        if self.naxis == 2:
+            d = self.data[:ny-nycut,:nx-nxcut]
+            _d = np.array([
+                d[j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ])
+        elif self.naxis == 3:
+            d = self.data[:,:ny-nycut,:nx-nxcut]
+            _d = np.array([
+                d[:, j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ])
+        elif self.naxis == 4:
+            d = self.data[:,:,:ny-nycut,:nx-nxcut]
+            _d = np.array([
+                d[:,:,j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ])
+        else:
+            print('ERROR\tbinning_xy: naxis must be 2 to 4.')
+            return 0
+        # binning data
+        self.data = np.nanmean(_d, axis = 0)
+
+        # update axes
+        x = self.xaxis[:nx-nxcut]
+        y = self.yaxis[:ny-nycut]
+        _x = np.array([x[i::nxbin] for i in range(nxbin)])
+        _y = np.array([y[i::nybin] for i in range(nybin)])
+        self.xaxis = np.nanmean(_x, axis = 0)
+        self.yaxis = np.nanmean(_y, axis = 0)
+        self.delx = self.xaxis[1] - self.xaxis[0]
+        self.dely = self.yaxis[1] - self.yaxis[0]
+        self.nx = len(self.xaxis)
+        self.ny = len(self.yaxis)
+        xx      = self.xx[:ny-nycut,:nx-nxcut]
+        yy      = self.yy[:ny-nycut,:nx-nxcut]
+        xx_wcs  = self.xx_wcs[:ny-nycut,:nx-nxcut]
+        yy_wcs  = self.yy_wcs[:ny-nycut,:nx-nxcut]
+        self.xx = np.nanmean(
+            np.array([
+                xx[j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ]), axis = 0
+            )
+        self.yy = np.nanmean(
+            np.array([
+                yy[j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ]), axis = 0
+            )
+        self.xx_wcs = np.nanmean(
+            np.array([
+                xx_wcs[j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ]), axis = 0
+            )
+        self.yy_wcs = np.nanmean(
+            np.array([
+                yy_wcs[j::nbin, i::nbin] for j in range(nybin) for i in range(nxbin)
+                ]), axis = 0
+            )
+
 
 
     def convert_units(self, conversion='IvtoTb'):
@@ -1083,6 +1194,54 @@ class Imfits():
             nv = self.nv
 
         return rms_ch * self.delv * np.sqrt(nv)
+
+
+
+    def search_for_line_detection(self, 
+        threshold, cond_area = 0.7, 
+        saxis = 0, radius = None, output_mode = 'minmax'):
+        if self.naxis <= 2:
+            print('ERROR\tsearch_for_line_detection: No frequency axis is found.')
+            print('ERROR\tsearch_for_line_detection: This function is for cube images.')
+            return 0
+        elif self.naxis == 3:
+            data = self.data.copy()
+        elif self.naxis == 4:
+            data = self.data.copy()[saxis,:,:,:,]
+        else:
+            print('ERROR\tsearch_for_line_detection: naxis must be 3 or 4.')
+            return 0
+
+        x = self.xx * 3600.
+        y = self.yy * 3600.
+
+        if radius is not None:
+            r = np.sqrt(x*x + y*y)
+            where = np.where(r > radius)
+            data[:, where[0], where[1]] = -100. # mask
+
+        # beam size
+        beam = 0.5 * (self.beam[0] + self.beam[1])
+
+        # search for detection
+        detection = []
+        for d in data:
+            cont_size = iu.get_contour_size(x, y, d, threshold)
+            if np.isnan(cont_size) | (cont_size < beam * cond_area):
+                detection.append(False)
+            else:
+                detection.append(True)
+
+        indices = [i for i, x in enumerate(detection) if x]
+
+        if output_mode == 'full':
+            return indices
+        elif output_mode == 'minmax':
+            return min(indices), max(indices)
+        else:
+            print('ERROR\tsearch_for_line_detection: input output_mode is wrong.')
+            print('ERROR\tsearch_for_line_detection: output_mode must be minmax or full.')
+            return 0
 
 
     # trim data to make it light
@@ -1367,6 +1526,7 @@ class Imfits():
             if vunit == 'velocity':
                 self.label_i[1] = 'VRAD'
             else:
+                self.label_i[1] = 'FREQ'
                 if self.restfreq is None:
                     freq = [1] * self.nv
                 else:
@@ -1397,7 +1557,13 @@ class Imfits():
             if self.naxis >= 3:
                 if vunit == 'velocity':
                     self.label_i[2] = 'VELO'
+                    vaxis = self.vaxis * 1.e3 # in cm/s
+                    refpix_i.append(1.)
+                    refval_i.append(vaxis[0])
+                    naxis_i.append(self.nv)
+                    del_i.append(vaxis[1] - vaxis[0])
                 else:
+                    self.label_i[2] = 'FREQ'
                     freq = ( 1. - self.vaxis * 1.e5 / clight ) * self.restfreq # km/s --> Hz
                     delv = freq[1] - freq[0] if self.naxis_i[2] > 1 else 1.
                     refpix_i.append(1.)
@@ -1421,7 +1587,8 @@ class Imfits():
 
 
     def writeout(self, outname, 
-        comment = None, hdkeys = None, overwrite = False):
+        comment = None, hdkeys = None, overwrite = False,
+        vunit = 'freq'):
         print('This function is under development. Might return a wrong result.')
         print('No multibeam output is currently supported.')
         print('Please use it with causion')
@@ -1431,7 +1598,7 @@ class Imfits():
 
         # header
         hdout = self.header.copy()
-        self.update_hdinfo()
+        self.update_hdinfo(vunit)
 
         # write header
         hdout['NAXIS'] = self.naxis
@@ -1455,6 +1622,7 @@ class Imfits():
                 hdout['BMAJ'] = self.beam[0] / 3600. # arcsec -> deg
                 hdout['BMIN'] = self.beam[1] / 3600. # arcsec -> deg
                 hdout['BPA'] = self.beam[2]
+                del hdout["CASAMBM"]
             else:
                 print('WARNING\twriteout: Found multibeam.')
                 print('WARNING\twriteout: No beam info is included in the output fits file.')

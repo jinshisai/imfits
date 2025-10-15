@@ -504,7 +504,7 @@ class AstroCanvas():
         xticks=[], yticks=[], vsys=None, scalebar=[],
         ccross=True, prop_cross=[None, 1., 'k'], bcolor='k', 
         cbarticks=None, coord_center=None, sbar_vertical=False,
-        vlabel_on=True, cbarlabel='', alpha = 1.,
+        vlabel_on=True, colorbar=True, cbarlabel='', alpha = 1.,
         plotall=False, absolutecoords=False, plot_beam=True, txtcolor='k'):
         '''
         Draw channel maps.
@@ -761,7 +761,7 @@ class AstroCanvas():
         if len(scalebar) != 0:
             add_scalebar(self.axes[(nrow-1)*ncol], scalebar)
         # colorbar
-        if color and ax:
+        if color and ax and colorbar:
             cax, cbar = self.add_colorbar(imcolor, cbarlabel=cbarlabel,)
         # remove blank pannel
         if gridi != gridimax+1 and gridi != 0:
