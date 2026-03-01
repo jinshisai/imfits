@@ -62,9 +62,9 @@ im = Imfits(f)  # Read information
 You can call the data and header information easily.
 
 ```python
-data  = fitsdata.data  # Call data array
-xaxis = fitsdata.xaxis # Call x axis
-nx    = fitsdata.nx    # Size of xaxis
+data  = im.data  # Call data array
+xaxis = im.xaxis # Call x axis
+nx    = im.nx    # Size of xaxis
 ```
 
 You can also draw maps calling `AstroCanvas` from `imfits.drawmaps`.
