@@ -369,9 +369,10 @@ def radial_profile(image, pa = None,
         return r_bin, prof, e_prof
 
 
-def cs_radial_profile(image, pa = None, 
+def cs_radial_profile(image, rms = None, pa = None, 
     inc = None, step = 'Nyquist', return_all = False, npa = 361,
-    pa_min = -180., pa_max = 180., istokes = None, ivelocity = None):
+    pa_min = -180., pa_max = 180., error_type = 'stat',
+    istokes = None, ivelocity = None):
     '''
     Calculate radial profile from a given image by taking azimuthal average.
 
@@ -383,6 +384,8 @@ def cs_radial_profile(image, pa = None,
      step (str or int): Sampling step. Default is Nyquist sampling. Step must be given in unit of pixel.
      return_all (bool): Return all results if true.
      npa (int): Number of bin along azimuthal direction. Default 361, resulting in 1deg step.
+     error_type (str): Type of output error. Must be stat (statistical error) or var (root variance).
+      If error_type = stat, rms must be provided.
     '''
     # sky deprojection
     if (pa is not None) & (inc is not None):
@@ -416,7 +419,14 @@ def cs_radial_profile(image, pa = None,
 
     # radial profile
     prof = np.nanmean(cslice, axis = 1)[::step]
-    e_prof = np.sqrt(np.nanvar(cslice, axis = 1))[::step] #* w_e[::step]
+    if (error_type == 'stat') & (rms is not None):
+        e_prof = rms / np.sqrt(npa) * w_e
+    elif error_type == 'var':
+        e_prof = np.sqrt(np.nanvar(cslice, axis = 1))[::step] #* w_e[::step]
+    else:
+        print('ERROR\cs_radial_profile: Input error_type is not correct.')
+        print('ERROR\cs_radial_profile: error_type must be stat or var.')
+        return 0
 
     if return_all:
         return r[::step], pa, cslice[::step,:], w_e[::step], prof, e_prof

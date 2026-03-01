@@ -56,7 +56,8 @@ class AstroCanvas():
         cbaroptions = ['right', '3%', '0%'],
         label_mode = '1',
         figsize: tuple = figsize_def,
-        pltconfig: dict = pltconfig_def) -> None:
+        pltconfig: dict = pltconfig_def,
+        projection = None) -> None:
         '''
         Initialize and set a canvas.
 
@@ -149,7 +150,7 @@ class AstroCanvas():
 
 
     def add_axes(self, nrow, ncol,
-        wspace=None, hspace=None):
+        wspace=None, hspace=None, projection = None):
         import itertools
         if self.naxes == 0:
             gs = GridSpec(nrows=nrow, ncols=ncol, figure=self.fig,
@@ -969,7 +970,7 @@ class AstroCanvas():
 
 
     def rgb_plot(self, image_r = None, image_g = None, image_b = None, 
-        reference = 'R', normalize = True, ftune_rgb = (1.,1., 1,), iaxis = 0,
+        reference = 'R', normalize = True, weight_rgb = (1.,1., 1,), iaxis = 0,
         stretch=0.5, scalebar = None
         ):
         # at least one image
@@ -1029,9 +1030,9 @@ class AstroCanvas():
             data_r, data_g, data_b = data_1, data_2, data_ref
 
         if normalize:
-            if image_r is not None: data_r *= ftune_rgb[0] / np.nanmax(data_r)
-            if image_g is not None: data_g *= ftune_rgb[1] / np.nanmax(data_g)
-            if image_b is not None: data_b *= ftune_rgb[2] / np.nanmax(data_b)
+            if image_r is not None: data_r *= weight_rgb[0] / np.nanmax(data_r)
+            if image_g is not None: data_g *= weight_rgb[1] / np.nanmax(data_g)
+            if image_b is not None: data_b *= weight_rgb[2] / np.nanmax(data_b)
 
         for d_i in [data_r, data_g, data_b]:
             d_i[d_i < 0.] = 0. # remove minus
@@ -2231,11 +2232,13 @@ def add_sources(ax, image, coords, marker = 'cross',
     # image center
     cc = SkyCoord(image.cc[0], image.cc[1], frame=image.frame.lower(), 
             unit=(u.deg, u.deg), equinox=image.equinox)
+    
     # plot
     for coord in coords:
         xc, yc = coord.split(' ')
         c_plt  = SkyCoord(xc, yc, frame=frame.lower(), 
             unit=unit, equinox=equinox)
+        cc = cc.transform_to(c_plt.frame) # to ensure the same frame
         x_plt, y_plt = cc.spherical_offsets_to(c_plt)
         x_plt = x_plt.arcsec # deg to arcsec
         y_plt = y_plt.arcsec # deg to arcsec

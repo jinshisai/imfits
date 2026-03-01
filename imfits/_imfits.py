@@ -57,7 +57,9 @@ class Imfits():
         if generate_empty_object:
             return
 
+        # use only primary HDU
         self.data, self.header = fits.getdata(infile, header=True)
+        self.wcs = WCS(self.header)
 
         self.ifpv = pv
         if pv:
@@ -305,7 +307,8 @@ class Imfits():
         self.vaxis = vaxis
         self.saxis = saxis
 
-        axes = np.array([xaxis, yaxis, vaxis, saxis], dtype=object)
+        axes = np.array(
+            [self.xaxis, self.yaxis, self.vaxis, self.saxis], dtype=object)
         self.axes  = axes
 
 
@@ -824,6 +827,7 @@ class Imfits():
         else:
             print('ERROR\tbinning: axis must be xy or v.')
             return 0
+        self.axes = [self.xaxis, self.yaxis, self.vaxis, self.saxis]
 
 
     def binning_v(self, nbin,):
