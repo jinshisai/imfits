@@ -50,7 +50,15 @@ Tutorials
    tutorials/demo_pvdiagram
 
 
-Known issues
+API
+==================
+.. toctree::
+   :maxdepth: 2
+
+   api/imfits.rst
+
+
+Notes
 ====================
 .. toctree::
    :maxdepth: 2
