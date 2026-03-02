@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>imfits.fitfuncs &#8212; imfits  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=4f649999" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=039e1c02" />
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for imfits.fitfuncs</h1><div class="highlight"><pre>
+<span></span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Fitting functions</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="c1"># modules</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">optimize</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">norm</span><span class="p">,</span> <span class="n">uniform</span>
+
+
+
+
+<span class="c1"># functions</span>
+<span class="c1"># gaussian</span>
+<div class="viewcode-block" id="gauss1d">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.gauss1d">[docs]</a>
+<span class="k">def</span> <span class="nf">gauss1d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">amp</span><span class="p">,</span><span class="n">mean</span><span class="p">,</span><span class="n">sig</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">amp</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mean</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mean</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">sig</span><span class="o">*</span><span class="n">sig</span><span class="p">))</span></div>
+
+
+<span class="c1"># for chi-square</span>
+<div class="viewcode-block" id="chi_gauss1d">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.chi_gauss1d">[docs]</a>
+<span class="k">def</span> <span class="nf">chi_gauss1d</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">,</span> <span class="n">ysig</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">ydata</span> <span class="o">-</span> <span class="p">(</span><span class="n">gauss1d</span><span class="p">(</span><span class="n">xdata</span><span class="p">,</span> <span class="o">*</span><span class="n">param</span><span class="p">)))</span> <span class="o">/</span> <span class="n">ysig</span></div>
+
+
+<div class="viewcode-block" id="gaussfit">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.gaussfit">[docs]</a>
+<span class="k">def</span> <span class="nf">gaussfit</span><span class="p">(</span><span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">,</span> <span class="n">yerr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Gaussian fit through chi-square fit.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># Get estimate of the initial parameters</span>
+    <span class="n">indx_pini</span> <span class="o">=</span> <span class="n">ydata</span> <span class="o">&gt;=</span> <span class="mf">3.</span><span class="o">*</span><span class="n">yerr</span>
+    <span class="n">mx</span>    <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">ydata</span><span class="p">[</span><span class="n">indx_pini</span><span class="p">]</span><span class="o">*</span><span class="n">xdata</span><span class="p">[</span><span class="n">indx_pini</span><span class="p">])</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">ydata</span><span class="p">[</span><span class="n">indx_pini</span><span class="p">])</span> <span class="c1"># weighted mean</span>
+    <span class="n">sigx</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">ydata</span><span class="p">[</span><span class="n">indx_pini</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="n">xdata</span><span class="p">[</span><span class="n">indx_pini</span><span class="p">]</span> <span class="o">-</span> <span class="n">mx</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">ydata</span><span class="p">[</span><span class="n">indx_pini</span><span class="p">]))</span> <span class="c1"># standerd deviation</span>
+
+    <span class="c1"># if sigx is too small</span>
+    <span class="k">if</span> <span class="n">sigx</span> <span class="o">&lt;=</span> <span class="mf">1e-6</span><span class="p">:</span>
+        <span class="n">sigx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">xdata</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">xdata</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">xdata</span><span class="p">)</span>
+
+    <span class="n">amp</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">ydata</span><span class="p">)</span>
+    <span class="n">pinp</span> <span class="o">=</span> <span class="p">[</span><span class="n">amp</span><span class="p">,</span> <span class="n">mx</span><span class="p">,</span> <span class="n">sigx</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">xdata</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">param_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">param_out</span><span class="p">,</span> <span class="n">param_err</span>
+
+    <span class="c1"># fitting</span>
+    <span class="n">results</span>   <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">leastsq</span><span class="p">(</span><span class="n">chi_gauss1d</span><span class="p">,</span> <span class="n">pinp</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">,</span> <span class="n">yerr</span><span class="p">),</span> <span class="n">full_output</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">param_out</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">param_cov</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1">#print(results)</span>
+    <span class="c1">#print(param_out, param_cov)</span>
+    <span class="c1"># Do not multiply covariance by reduced chi^2 to obtain absolute errors</span>
+
+    <span class="c1"># parameter error estimates</span>
+    <span class="k">if</span> <span class="n">param_cov</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">param_cov</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">j</span><span class="p">])</span><span class="o">**</span><span class="mf">0.5</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pinp</span><span class="p">))</span>
+            <span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">param_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">param_out</span> <span class="o">==</span> <span class="n">pinp</span><span class="p">)</span><span class="o">.</span><span class="n">all</span> <span class="k">else</span> <span class="n">param_out</span>
+
+    <span class="c1"># print results</span>
+    <span class="c1">#print (&#39;Chi2: &#39;, reduced_chi2)</span>
+    <span class="c1">#print (&#39;Fitting results: amp   mean   sigma&#39;)</span>
+    <span class="c1">#print (amp_fit, mx_fit, sigx_fit)</span>
+    <span class="c1">#print (&#39;Errors&#39;)</span>
+    <span class="c1">#print (amp_fit_err, mx_fit_err, sigx_fit_err)</span>
+
+    <span class="k">return</span> <span class="n">param_out</span><span class="p">,</span> <span class="n">param_err</span></div>
+
+
+
+<span class="c1"># functions</span>
+<div class="viewcode-block" id="lnprof_gauss">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.lnprof_gauss">[docs]</a>
+<span class="k">def</span> <span class="nf">lnprof_gauss</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">amp</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">delv</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate a Gaussian lineprofile. Note that the definition of delv is the line width</span>
+<span class="sd">    of the Doppler broadening.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">     v: velocity</span>
+<span class="sd">     amp: Amplitude. Not a peak value, but the integrated value.</span>
+<span class="sd">     v0: mean velocity</span>
+<span class="sd">     delv: line width</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="n">amp</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">v0</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span> <span class="o">/</span> <span class="n">delv</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># functions</span>
+<div class="viewcode-block" id="lnprof_gauss_tau">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.lnprof_gauss_tau">[docs]</a>
+<span class="k">def</span> <span class="nf">lnprof_gauss_tau</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">delT</span><span class="p">,</span> <span class="n">tau</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">delv</span><span class="p">,</span> <span class="n">Tbg</span> <span class="o">=</span> <span class="mf">0.</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate a Gaussian lineprofile. Note that the definition of delv is the line width</span>
+<span class="sd">    of the Doppler broadening.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">     v: velocity</span>
+<span class="sd">     amp: Amplitude. Not a peak value, but the integrated value.</span>
+<span class="sd">     v0: mean velocity</span>
+<span class="sd">     delv: line width</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">delT</span> <span class="o">-</span> <span class="n">Tbg</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span> <span class="o">-</span> <span class="n">tau</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">v0</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span> <span class="o">/</span> <span class="n">delv</span><span class="o">**</span><span class="mf">2.</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="chi_lnprof_gauss">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.chi_lnprof_gauss">[docs]</a>
+<span class="k">def</span> <span class="nf">chi_lnprof_gauss</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">derr</span><span class="p">,</span> <span class="n">include_tau</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">include_tau</span><span class="p">:</span>
+        <span class="n">chi</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span> <span class="o">-</span> <span class="n">lnprof_gauss_tau</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="o">*</span><span class="n">param</span><span class="p">))</span> <span class="o">/</span> <span class="n">derr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">chi</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span> <span class="o">-</span> <span class="n">lnprof_gauss</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="o">*</span><span class="n">param</span><span class="p">))</span> <span class="o">/</span> <span class="n">derr</span>
+    <span class="k">return</span> <span class="n">chi</span></div>
+
+
+
+<div class="viewcode-block" id="fit_lnprof">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.fit_lnprof">[docs]</a>
+<span class="k">def</span> <span class="nf">fit_lnprof</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">yerr</span><span class="p">,</span> 
+    <span class="n">pixrng</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">include_tau</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">p0</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Perform fitting to determine the peak position.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># determining used data range</span>
+    <span class="k">if</span> <span class="n">pixrng</span><span class="p">:</span>
+        <span class="c1"># error check</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">pixrng</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">int</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Error</span><span class="se">\t</span><span class="s1">pvfit_vcut: pixrng must be integer.&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># use pixels only around intensity peak</span>
+        <span class="n">peakindex</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">fit_indx</span>  <span class="o">=</span> <span class="p">[</span><span class="n">peakindex</span> <span class="o">-</span> <span class="n">pixrng</span><span class="p">,</span> <span class="n">peakindex</span> <span class="o">+</span> <span class="n">pixrng</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">x_fit</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">fit_indx</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">fit_indx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">y_fit</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">fit_indx</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">fit_indx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">x_fit</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="n">y_fit</span> <span class="o">=</span> <span class="n">y</span>
+
+    <span class="c1"># set the initial parameter</span>
+    <span class="k">if</span> <span class="n">p0</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mx</span>   <span class="o">=</span> <span class="n">x_fit</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nanargmax</span><span class="p">(</span><span class="n">y_fit</span><span class="p">)]</span>
+        <span class="n">amp</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">y_fit</span><span class="p">)</span>
+        <span class="n">sigx</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="mf">3.</span> <span class="c1">#np.sqrt(np.nansum((mx - x_fit)**2. * y_fit) / np.nansum(y_fit))</span>
+        <span class="k">if</span> <span class="n">include_tau</span><span class="p">:</span>
+            <span class="n">pinp</span> <span class="o">=</span> <span class="p">[</span><span class="n">amp</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="n">mx</span><span class="p">,</span> <span class="n">sigx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pinp</span> <span class="o">=</span> <span class="p">[</span><span class="n">amp</span><span class="p">,</span> <span class="n">mx</span><span class="p">,</span> <span class="n">sigx</span><span class="p">]</span>
+        <span class="c1">#print(&#39;pinp&#39;, pinp)</span>
+
+    <span class="n">f_chi</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">p</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">yerr</span><span class="p">,:</span> <span class="n">chi_lnprof_gauss</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">yerr</span><span class="p">,</span> <span class="n">include_tau</span> <span class="o">=</span> <span class="n">include_tau</span><span class="p">)</span>
+
+    <span class="c1"># fitting</span>
+    <span class="n">ndata</span>   <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_fit</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">leastsq</span><span class="p">(</span>
+        <span class="n">f_chi</span><span class="p">,</span> 
+        <span class="n">pinp</span><span class="p">,</span> 
+        <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">x_fit</span><span class="p">,</span> <span class="n">y_fit</span><span class="p">,</span> <span class="n">yerr</span><span class="p">),</span> 
+        <span class="n">full_output</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># recording output results</span>
+    <span class="c1"># param_out: fitted parameters</span>
+    <span class="c1"># err: error of fitted parameters</span>
+    <span class="c1"># chi2: chi-square</span>
+    <span class="c1"># DOF: degree of freedum</span>
+    <span class="c1"># reduced_chi2: reduced chi-square</span>
+    <span class="n">param_out</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">param_out</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">param_out</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">param_cov</span>    <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">chi2</span>         <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">f_chi</span><span class="p">(</span><span class="n">param_out</span><span class="p">,</span> <span class="n">x_fit</span><span class="p">,</span> <span class="n">y_fit</span><span class="p">,</span> <span class="n">yerr</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span>
+    <span class="n">nparam</span>       <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_out</span><span class="p">)</span>
+    <span class="n">dof</span>          <span class="o">=</span> <span class="n">ndata</span> <span class="o">-</span> <span class="n">nparam</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">reduced_chi2</span> <span class="o">=</span> <span class="n">chi2</span> <span class="o">/</span> <span class="n">dof</span>
+
+    <span class="c1">#print (ndata, nparam, dof)</span>
+    <span class="c1">#print (param_cov)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">dof</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">param_cov</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">pass</span>
+        <span class="c1">#param_cov = param_cov #*reduced_chi2</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">param_cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">nparam</span><span class="p">,</span> <span class="n">nparam</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+
+    <span class="c1"># best fit value</span>
+    <span class="c1">#amp_fit, mx_fit, sigx_fit = param_out</span>
+
+    <span class="c1"># fitting error</span>
+    <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">param_cov</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">j</span><span class="p">])</span><span class="o">**</span><span class="mf">0.5</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparam</span><span class="p">)</span>
+        <span class="p">])</span>
+    <span class="c1">#amp_fit_err, mx_fit_err, sigx_fit_err = param_err</span>
+
+    <span class="c1"># print results</span>
+    <span class="c1">#print (&#39;Chi2: &#39;, reduced_chi2)</span>
+    <span class="c1">#print (&#39;Fitting results: amp   mean   sigma&#39;)</span>
+    <span class="c1">#print (amp_fit, mx_fit, sigx_fit)</span>
+    <span class="c1">#print (&#39;Errors&#39;)</span>
+    <span class="c1">#print (amp_fit_err, mx_fit_err, sigx_fit_err)</span>
+
+    <span class="k">return</span> <span class="n">param_out</span><span class="p">,</span> <span class="n">param_err</span></div>
+
+
+
+<div class="viewcode-block" id="gaussian2d">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.gaussian2d">[docs]</a>
+<span class="k">def</span> <span class="nf">gaussian2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">mx</span><span class="p">,</span> <span class="n">my</span><span class="p">,</span> <span class="n">sigx</span><span class="p">,</span> <span class="n">sigy</span><span class="p">,</span> <span class="n">pa</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">peak</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate normalized 2D Gaussian</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">     x: x value (coordinate)</span>
+<span class="sd">     y: y value</span>
+<span class="sd">     A: Amplitude. Not a peak value, but the integrated value.</span>
+<span class="sd">     mx, my: mean values</span>
+<span class="sd">     sigx, sigy: standard deviations</span>
+<span class="sd">     pa: position angle [deg]. Counterclockwise is positive.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span>   <span class="o">=</span> <span class="n">rotate2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">pa</span><span class="p">)</span>
+    <span class="n">mx</span><span class="p">,</span> <span class="n">my</span> <span class="o">=</span> <span class="n">rotate2d</span><span class="p">(</span><span class="n">mx</span><span class="p">,</span> <span class="n">my</span><span class="p">,</span> <span class="n">pa</span><span class="p">)</span>
+
+    <span class="n">coeff</span> <span class="o">=</span> <span class="n">A</span> <span class="k">if</span> <span class="n">peak</span> <span class="k">else</span> <span class="n">A</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">sigx</span><span class="o">*</span><span class="n">sigy</span><span class="p">)</span>
+    <span class="n">expx</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mx</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mx</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">sigx</span><span class="o">*</span><span class="n">sigx</span><span class="p">))</span>
+    <span class="n">expy</span>  <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">my</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">my</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">sigy</span><span class="o">*</span><span class="n">sigy</span><span class="p">))</span>
+    <span class="n">gauss</span> <span class="o">=</span> <span class="n">coeff</span><span class="o">*</span><span class="n">expx</span><span class="o">*</span><span class="n">expy</span>
+    <span class="k">return</span> <span class="n">gauss</span></div>
+
+
+
+<div class="viewcode-block" id="gaussian2d_dev">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.gaussian2d_dev">[docs]</a>
+<span class="k">def</span> <span class="nf">gaussian2d_dev</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">mx</span><span class="p">,</span> <span class="n">my</span><span class="p">,</span> <span class="n">sigx</span><span class="p">,</span> <span class="n">sigy</span><span class="p">,</span> <span class="n">pa</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">peak</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Generate normalized 2D Gaussian.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">     x (float or array): x value (coordinate)</span>
+<span class="sd">     y (float or array): y value</span>
+<span class="sd">     A (float): Amplitude. Not a peak value, but the integrated value.</span>
+<span class="sd">     mx, my (float): mean values</span>
+<span class="sd">     sigx, sigy (float): standard deviations</span>
+<span class="sd">     pa (float): position angle (deg). Measured from y positive to x positive.</span>
+<span class="sd">                 In the plane of the sky, from north to east.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">coeff</span> <span class="o">=</span> <span class="n">A</span> <span class="k">if</span> <span class="n">peak</span> <span class="k">else</span> <span class="n">A</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">sigx</span><span class="o">*</span><span class="n">sigy</span><span class="p">)</span>
+    <span class="n">rho</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tan</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mf">90.</span> <span class="o">-</span> <span class="n">pa</span><span class="p">))</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">rho</span> <span class="o">*</span> <span class="n">sigx</span> <span class="o">*</span> <span class="n">sigy</span>
+    <span class="n">_exp</span> <span class="o">=</span> <span class="o">-</span> <span class="mf">1.</span> <span class="o">/</span> <span class="p">(</span><span class="n">sigx</span><span class="o">**</span><span class="mf">2.</span> <span class="o">*</span> <span class="n">sigy</span><span class="o">**</span><span class="mf">2.</span> <span class="o">-</span> <span class="n">cov</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.</span>\
+    <span class="o">*</span> <span class="p">((</span><span class="n">x</span> <span class="o">-</span> <span class="n">mx</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mx</span><span class="p">)</span> <span class="o">*</span> <span class="n">sigy</span><span class="o">**</span><span class="mf">2.</span> <span class="o">-</span> <span class="mf">2.</span> <span class="o">*</span> <span class="n">cov</span> <span class="o">*</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">mx</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">my</span><span class="p">)</span>\
+        <span class="o">+</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">my</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">my</span><span class="p">)</span> <span class="o">*</span> <span class="n">sigx</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">coeff</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">_exp</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="rotate2d">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.rotate2d">[docs]</a>
+<span class="k">def</span> <span class="nf">rotate2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Rotate Cartesian coordinates.</span>
+<span class="sd">    Right hand direction will be positive.</span>
+
+<span class="sd">    array2d: input array</span>
+<span class="sd">    angle: rotational angle [deg or radian]</span>
+<span class="sd">    axis: rotatinal axis. (0,1,2) mean (x,y,z). Default x.</span>
+<span class="sd">    deg (bool): If True, angle will be treated as in degree. If False, as in radian.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># degree --&gt; radian</span>
+    <span class="k">if</span> <span class="n">deg</span><span class="p">:</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">coords</span><span class="p">:</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="o">-</span><span class="n">angle</span>
+
+    <span class="n">cos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+    <span class="n">sin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+
+    <span class="n">xrot</span> <span class="o">=</span> <span class="n">x</span><span class="o">*</span><span class="n">cos</span> <span class="o">-</span> <span class="n">y</span><span class="o">*</span><span class="n">sin</span>
+    <span class="n">yrot</span> <span class="o">=</span> <span class="n">x</span><span class="o">*</span><span class="n">sin</span> <span class="o">+</span> <span class="n">y</span><span class="o">*</span><span class="n">cos</span>
+
+    <span class="k">return</span> <span class="n">xrot</span><span class="p">,</span> <span class="n">yrot</span></div>
+
+
+
+<div class="viewcode-block" id="gaussfit2d">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.gaussfit2d">[docs]</a>
+<span class="k">def</span> <span class="nf">gaussfit2d</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">d_err</span><span class="p">,</span> <span class="n">pini</span><span class="o">=</span><span class="p">[],</span> <span class="n">peak</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Gaussian fit through chi-square fit.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># Data check</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pini</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="p">(</span><span class="n">d</span> <span class="o">&gt;=</span> <span class="mf">3.</span><span class="o">*</span><span class="n">d_err</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No data &gt;3sigma. Give pini.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="k">if</span> <span class="n">xx</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Not enough data points.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="c1"># Get estimate of the initial parameters</span>
+    <span class="n">indx_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanargmax</span><span class="p">(</span><span class="n">d</span><span class="p">),</span> <span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">amp</span>  <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">indx_max</span><span class="p">]</span>
+    <span class="n">mx</span><span class="p">,</span> <span class="n">my</span> <span class="o">=</span> <span class="n">xx</span><span class="p">[</span><span class="n">indx_max</span><span class="p">],</span> <span class="n">yy</span><span class="p">[</span><span class="n">indx_max</span><span class="p">]</span>
+    <span class="n">indx_sig</span> <span class="o">=</span> <span class="n">d</span> <span class="o">&gt;=</span> <span class="mf">3.</span><span class="o">*</span><span class="n">d_err</span>
+    <span class="n">sigx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">indx_sig</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">xx</span><span class="p">[</span><span class="n">indx_sig</span><span class="p">]</span> <span class="o">-</span> <span class="n">mx</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">indx_sig</span><span class="p">]))</span>
+    <span class="n">sigy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">indx_sig</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">yy</span><span class="p">[</span><span class="n">indx_sig</span><span class="p">]</span> <span class="o">-</span> <span class="n">my</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">indx_sig</span><span class="p">]))</span>
+
+    <span class="n">pini</span> <span class="o">=</span> <span class="p">[</span><span class="n">amp</span><span class="p">,</span> <span class="n">mx</span><span class="p">,</span> <span class="n">my</span><span class="p">,</span> <span class="n">sigx</span><span class="p">,</span> <span class="n">sigy</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="p">]</span>
+
+    <span class="c1"># fitting</span>
+    <span class="n">gauss2d</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">gaussian2d</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">,</span> <span class="n">peak</span><span class="o">=</span><span class="n">peak</span><span class="p">)</span>
+    <span class="n">chi_gauss2d</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">chi2d</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">gauss2d</span><span class="p">)</span>
+    <span class="n">results</span>   <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">leastsq</span><span class="p">(</span><span class="n">chi_gauss2d</span><span class="p">,</span> <span class="n">pini</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">d_err</span><span class="p">),</span> <span class="n">full_output</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">param_out</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">param_cov</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1">#print(results)</span>
+    <span class="c1">#print(param_out, param_cov)</span>
+    <span class="c1"># Do not multiply covariance by reduced chi^2 to obtain absolute errors</span>
+
+    <span class="c1"># parameter error estimates</span>
+    <span class="k">if</span> <span class="n">param_cov</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">param_cov</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">j</span><span class="p">])</span><span class="o">**</span><span class="mf">0.5</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pini</span><span class="p">))</span>
+            <span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">param_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">param_out</span> <span class="o">==</span> <span class="n">pini</span><span class="p">)</span><span class="o">.</span><span class="n">all</span> <span class="k">else</span> <span class="n">param_out</span>
+
+    <span class="c1"># print results</span>
+    <span class="c1">#print (&#39;Chi2: &#39;, reduced_chi2)</span>
+    <span class="c1">#print (&#39;Fitting results: amp   mean   sigma&#39;)</span>
+    <span class="c1">#print (amp_fit, mx_fit, sigx_fit)</span>
+    <span class="c1">#print (&#39;Errors&#39;)</span>
+    <span class="c1">#print (amp_fit_err, mx_fit_err, sigx_fit_err)</span>
+
+    <span class="k">return</span> <span class="n">param_out</span><span class="p">,</span> <span class="n">param_err</span></div>
+
+
+
+<div class="viewcode-block" id="plaw">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.plaw">[docs]</a>
+<span class="k">def</span> <span class="nf">plaw</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">x0</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">a</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">/</span><span class="n">x0</span><span class="p">)</span><span class="o">**</span><span class="n">p</span></div>
+
+
+<div class="viewcode-block" id="chi">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.chi">[docs]</a>
+<span class="k">def</span> <span class="nf">chi</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">sig</span><span class="p">,</span> <span class="n">fmodel</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">fmodel</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">))</span> <span class="o">/</span> <span class="n">sig</span></div>
+
+
+<div class="viewcode-block" id="chi2d">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.chi2d">[docs]</a>
+<span class="k">def</span> <span class="nf">chi2d</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">d_err</span><span class="p">,</span> <span class="n">fmodel</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">((</span><span class="n">d</span> <span class="o">-</span> <span class="n">fmodel</span><span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">))</span> <span class="o">/</span> <span class="n">d_err</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="plawfit">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.plawfit">[docs]</a>
+<span class="k">def</span> <span class="nf">plawfit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">sig</span><span class="p">,</span> <span class="n">x0</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">pini</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pini</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">p0</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span><span class="o">/</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">x0</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">x0</span><span class="p">))</span>
+        <span class="n">a0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">y</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">/</span><span class="n">x0</span><span class="p">)</span><span class="o">**</span><span class="n">p0</span>
+        <span class="n">pini</span> <span class="o">=</span> <span class="p">[</span><span class="n">a0</span><span class="p">,</span> <span class="n">p0</span><span class="p">]</span>
+
+    <span class="n">plaw_fit</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">plaw</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">,</span> <span class="n">x0</span><span class="o">=</span><span class="n">x0</span><span class="p">)</span>
+    <span class="n">chi_plaw</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">chi</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">plaw_fit</span><span class="p">)</span>
+    <span class="n">results</span>   <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">leastsq</span><span class="p">(</span><span class="n">chi_plaw</span><span class="p">,</span> <span class="n">pini</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">sig</span><span class="p">),</span> <span class="n">full_output</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">param_out</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">param_cov</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">param_cov</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">param_cov</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">j</span><span class="p">])</span><span class="o">**</span><span class="mf">0.5</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pini</span><span class="p">))</span>
+            <span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">param_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="n">param_out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">param_out</span> <span class="o">==</span> <span class="n">pini</span><span class="p">)</span><span class="o">.</span><span class="n">all</span> <span class="k">else</span> <span class="n">param_out</span>
+
+    <span class="k">return</span> <span class="n">param_out</span><span class="p">,</span> <span class="n">param_err</span></div>
+
+
+
+
+<div class="viewcode-block" id="estimate_perror">
+<a class="viewcode-back" href="../../imfits.html#imfits.fitfuncs.estimate_perror">[docs]</a>
+<span class="k">def</span> <span class="nf">estimate_perror</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">xerr</span><span class="p">,</span> <span class="n">yerr</span><span class="p">,</span> <span class="n">niter</span><span class="o">=</span><span class="mi">3000</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Estimate fitting-parameter errors by Monte-Carlo method.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">nparams</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">perrors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">nparams</span><span class="p">),</span> <span class="nb">float</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">niter</span><span class="p">):</span>
+        <span class="n">offest</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">loc</span> <span class="o">=</span> <span class="n">x</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="n">xerr</span><span class="p">)</span>
+        <span class="n">velest</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">loc</span> <span class="o">=</span> <span class="n">y</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="n">yerr</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">leastsq</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">offest</span><span class="p">,</span> <span class="n">velest</span><span class="p">,</span> <span class="n">xerr</span><span class="p">,</span> <span class="n">yerr</span><span class="p">),</span> <span class="n">full_output</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">perrors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">perrors</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="c1">#print param_esterr[:,0]</span>
+
+    <span class="n">sigmas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">perrors</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparams</span><span class="p">)</span>
+        <span class="p">])</span>
+    <span class="n">medians</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">perrors</span><span class="p">[:,</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparams</span><span class="p">)</span>
+        <span class="p">])</span>
+
+
+    <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">printoptions</span><span class="p">(</span><span class="n">precision</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">suppress</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Estimated errors (standard deviation):&#39;</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Medians:&#39;</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="n">medians</span><span class="p">)</span>
+
+
+    <span class="c1"># plot the Monte-Carlo results</span>
+    <span class="n">fig_errest</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mf">11.69</span><span class="p">,</span><span class="mf">8.27</span><span class="p">),</span> <span class="n">frameon</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="n">gs</span>         <span class="o">=</span> <span class="n">GridSpec</span><span class="p">(</span><span class="n">nparams</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nparams</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">xlabels</span>    <span class="o">=</span> <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;$V_\mathrm</span><span class="si">{sys}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$V_\mathrm</span><span class="si">{100}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$p$&#39;</span> <span class="p">]</span>
+    <span class="k">elif</span> <span class="n">nparams</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">xlabels</span>    <span class="o">=</span> <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;$V_\mathrm</span><span class="si">{break}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$R_\mathrm</span><span class="si">{break}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$p_\mathrm</span><span class="si">{in}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$p_\mathrm</span><span class="si">{out}</span><span class="s1">$&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">xlabels</span> <span class="o">=</span> <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;$p</span><span class="si">%i</span><span class="s1">$&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparams</span><span class="p">)]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparams</span><span class="p">):</span>
+        <span class="c1"># histogram</span>
+        <span class="n">ax1</span> <span class="o">=</span> <span class="n">fig_errest</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabels</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="p">(</span><span class="n">nparams</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">perrors</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">bins</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="n">cumulative</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="c1"># density = True</span>
+
+        <span class="c1"># cumulative histogram</span>
+        <span class="n">ax2</span> <span class="o">=</span> <span class="n">fig_errest</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabels</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="p">(</span><span class="n">nparams</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Cumulative</span><span class="se">\n</span><span class="s1"> frequency&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">perrors</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">bins</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cumulative</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.4</span><span class="p">)</span>
+    <span class="c1">#plt.show()</span>
+    <span class="n">fig_errest</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">outname</span> <span class="o">+</span> <span class="s1">&#39;_errest.pdf&#39;</span><span class="p">,</span> <span class="n">transparent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fig_errest</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">sigmas</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">imfits</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../imfits.html">imfits package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2026, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

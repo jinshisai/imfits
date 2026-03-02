@@ -55,7 +55,7 @@ API
 .. toctree::
    :maxdepth: 2
 
-   api/index.rst
+   api/imfits.rst
 
 
 Known Issues
