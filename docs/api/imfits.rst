@@ -1,7 +1,7 @@
 imfits
 ==============
 
-Main contents
+Imfits
 ---------------
 
 .. automodule:: imfits
@@ -11,13 +11,24 @@ Main contents
 
 
 Plotting
----------------
+----------
+
+
+AstroCanvas
+^^^^^^^^^^^^^
+
+.. automodule:: imfits.drawmaps.AstroCanvas
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 imfits.drawmaps
-----------------------
+^^^^^^^^^^^^^^^
 
 .. automodule:: imfits.drawmaps
    :members:
+   :exclude-members: AstroCanvas
    :undoc-members:
    :show-inheritance:
 
@@ -63,7 +74,7 @@ imfits.au
       :show-inheritance:
 
 imfits.mapunit
----------------------
+^^^^^^^^^^^^^^^
 
 .. automodule:: imfits.mapunit
    :members:

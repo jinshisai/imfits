@@ -26,10 +26,40 @@ clight     = 2.99792458e10 # light speed [cm s^-1]
 from .mapunit import IvTOJT, TbTOIv, pas2TOpbm, IvTOTex
 from . import iu
 
-### Imfits
+
+
 class Imfits():
     '''
-    Read a fits file, store the information, and draw maps.
+    Read and store fits data and header information.
+
+    Parameters
+    ----------
+    infile: str
+        Path to the fits file.
+    pv : bool
+        If the input fits file is the position-velocity image or not.
+    frame : str or None, optional
+        Coordinate frame, required if missing in the FITS header.
+    equinox : str, optional
+        Equinox of the coordinate frame; used 
+        when the coordinate frame is Jxxxx and the equinox is missing in the header.
+    axesorder : tuple
+        Order of axes if they need to be reordered. 
+        The new axis order is specified using original axis indices.
+        E.g., to swich the 2nd and 4th axes, use (0, 3, 2, 1). 
+        Indices start at 0.
+    velocity : bool
+        Convert frequency to velocity if True.
+    flip_vaxis : bool
+        Flip the velocity axis if it decreases with increasing index.
+    beam_savetype : {'full', 'average', or 'single'}, optional
+        How to treat CASA multi-beam. See the read_casa_multibeam method 
+        for more details.
+    beam_index : int
+        Index of multi-beam used when beam_savetype = 'single'.
+        See the read_casa_multibeam method for more details.
+    generate_empty_object : bool
+        Generate an empty Imfits object if True.
     '''
 
     def __init__(self, infile, pv=False, 
@@ -829,7 +859,8 @@ class Imfits():
 
         Parameters
         ----------
-        nbin (int): Binning factor. E.g., if nbin = 3, original three pixels will be
+        nbin : int
+         Binning factor. E.g., if nbin = 3, original three pixels will be
          binned into a single pixel.
         axis (str): 'velocity' or 'xy'.
         '''
