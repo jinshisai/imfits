@@ -1,6 +1,5 @@
-..
-   imfits package
-   ==============
+imfits
+==============
 
 Main contents
 ---------------
