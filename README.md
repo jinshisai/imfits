@@ -10,6 +10,7 @@ Imfits can also read fits files of position-velocity (PV) diagrams. The script i
 **Requirements**
 
 - numpy
+- scipy
 - astropy
 - matplotlib
 
