@@ -38,18 +38,31 @@ class Imfits():
         generate_empty_object = False,
         beam_savetype = 'full', beam_index = 0):
         '''
-        Read and save fits data and header information.
+        Read and store fits data and header information.
 
 
         Parameters
         ----------
-         infile (str): Path to the fits file.
-         pv (bool): If the input fits file is for the position-velocity image or not.
-         frame (str or None): Optional. Coordinate frame, 
-            which will be required if it is missing in the fits header.
-         equinox (str): Optional. Equinox of the coordinate frame. It will be used 
+        infile (str): Path to the fits file.
+        pv (bool): If the input fits file is the position-velocity image or not.
+        frame (str or None): Optional. Coordinate frame, which will be required 
+           if it is missing in the fits header.
+        equinox (str): Optional. Equinox of the coordinate frame. It will be used 
             when the coordinate frame is Jxxxx and the equinox is missing in the header.
-         axesorder (tuple): An order of axes, if they need to be reordered.
+        axesorder (tuple): An order of axes, if they need to be reordered. 
+           The new axis order is specified using original axis indices.
+           E.g., to swich the 2nd and 4th axes, the input will be (0, 3, 2, 1). 
+           The index starts with zero.
+        velocity (bool): Frequency will be converted to velocity if True.
+        flip_vaxis (bool): If True, the velocity axis will be fliped when it 
+           decreases with increasing index.
+        beam_savetype (str): Optional setup to specify how to treat multi-beam.
+           Must be 'full', 'average', or 'single'. See the read_casa_multibeam method 
+           for more details.
+        beam_index (int): Index of multi-beam, which is used when beam_savetype = 'single'.
+           See the read_casa_multibeam method 
+           for more details.
+        generate_empty_object (bool): An empty Imfits object will be generated if True.
         '''
         self.file = infile
 
@@ -536,9 +549,9 @@ class Imfits():
 
         Parameter
         ---------
-         order (tuple): New order of axes. Must be given as tuple within which
-            new order is specified by integers. E.g., in order to swich the 2nd and 4th axes,
-            the input will be (0, 3, 2, 1). Note that the 1st axis index is zero following the python rule.
+        order (tuple): New order of axes, specified using original axis indices.
+            E.g., in order to swich the 2nd and 4th axes,
+            the input will be (0, 3, 2, 1). The index starts with zero.
         '''
         # check
         if type(order) != tuple:

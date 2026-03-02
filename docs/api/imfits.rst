@@ -1,26 +1,19 @@
 imfits package
 ==============
 
-Submodules
-----------
+Main contents
+---------------
 
-imfits.au module
-----------------
-
-.. automodule:: imfits.au
+.. automodule:: imfits
    :members:
    :undoc-members:
    :show-inheritance:
 
-imfits.deprojection module
---------------------------
 
-.. automodule:: imfits.deprojection
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Plotting
+---------------
 
-imfits.drawmaps module
+imfits.drawmaps
 ----------------------
 
 .. automodule:: imfits.drawmaps
@@ -28,34 +21,51 @@ imfits.drawmaps module
    :undoc-members:
    :show-inheritance:
 
-imfits.fitfuncs module
-----------------------
 
-.. automodule:: imfits.fitfuncs
+Utils
+----------
+
+
+imfits.au
+^^^^^^^^^^^^^^^^
+
+.. automodule:: imfits.au
    :members:
    :undoc-members:
    :show-inheritance:
 
-imfits.iu module
-----------------
+..
+   imfits.deprojection module
+   --------------------------
 
-.. automodule:: imfits.iu
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   .. automodule:: imfits.deprojection
+      :members:
+      :undoc-members:
+      :show-inheritance:
 
-imfits.mapunit module
+
+..
+   imfits.fitfuncs module
+   ----------------------
+
+   .. automodule:: imfits.fitfuncs
+      :members:
+      :undoc-members:
+      :show-inheritance:
+
+..
+   imfits.iu module
+   ----------------
+
+   .. automodule:: imfits.iu
+      :members:
+      :undoc-members:
+      :show-inheritance:
+
+imfits.mapunit
 ---------------------
 
 .. automodule:: imfits.mapunit
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: imfits
    :members:
    :undoc-members:
    :show-inheritance:
