@@ -1,5 +1,4 @@
-imfits
-==============
+
 
 .. automodule:: imfits
    :members:

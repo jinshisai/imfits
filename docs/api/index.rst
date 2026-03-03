@@ -3,17 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to imfits's documentation!
+imfits
 ==================================
 
 .. toctree::
    :maxdepth: 4
-   :caption: Contents:
+   :caption:
 
    imfits
 
 
-Indices and tables
+Indices and search
 ==================
 
 * :ref:`genindex`
