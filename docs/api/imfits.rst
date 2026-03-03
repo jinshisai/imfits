@@ -1,11 +1,9 @@
 imfits
 ==============
 
-Imfits
----------------
-
 .. automodule:: imfits
    :members:
+   :exclude-members: Imfits.estimate_noise
    :undoc-members:
    :show-inheritance:
 
@@ -17,8 +15,8 @@ Plotting
 AstroCanvas
 ^^^^^^^^^^^^^
 
-.. automodule:: imfits.drawmaps.AstroCanvas
-   :members:
+.. automodule:: imfits.drawmaps
+   :members: AstroCanvas
    :undoc-members:
    :show-inheritance:
 
