@@ -50,7 +50,7 @@ Tutorials
    tutorials/demo_pvdiagram
 
 
-API
+API References
 ==================
 .. toctree::
    :maxdepth: 2
