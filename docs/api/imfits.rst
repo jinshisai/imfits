@@ -12,9 +12,6 @@ Plotting
 ----------
 
 
-AstroCanvas
-^^^^^^^^^^^^^
-
 .. automodule:: imfits.drawmaps
    :members: AstroCanvas
    :undoc-members:
