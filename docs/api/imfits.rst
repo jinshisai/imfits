@@ -1,9 +1,9 @@
-..imfits
-..===========
+.. imfits
+.. ===========
 
 .. automodule:: imfits
    :members:
-   :exclude-members: Imfits.estimate_noise
+   :exclude-members: imfits.Imfits.estimate_noise
    :undoc-members:
    :show-inheritance:
 
@@ -23,7 +23,7 @@ imfits.drawmaps
 
 .. automodule:: imfits.drawmaps
    :members:
-   :exclude-members: AstroCanvas
+   :exclude-members: AstroCanvas, intensitymap, channelmaps, pvdiagram, trim_data, index_between, color_normalization, add_colorbar_toaxis_old
    :undoc-members:
    :show-inheritance:
 
