@@ -443,7 +443,7 @@ def cs_radial_profile(image, rms = None, pa = None,
         image, rms = rms, pa = pa, 
         inc = inc, step = step, return_all = return_all, npa = npa,
         pa_min = pa_min, pa_max = pa_max, error_type = error_type,
-        istokes = istokes, ivelocity = ivelocity):
+        istokes = istokes, ivelocity = ivelocity)
 
 
 def radial_profile(image, rms = None, pa = None, 
@@ -533,7 +533,7 @@ def radial_profile(image, rms = None, pa = None,
     # radial profile
     prof = np.nanmean(cslice, axis = 1)[::step]
     if (error_type == 'stat') & (rms is not None):
-        e_prof = rms / np.sqrt(npa) * w_e
+        e_prof = rms / np.sqrt(npa) * w_e[::step]
     elif error_type == 'var':
         e_prof = np.sqrt(np.nanvar(cslice, axis = 1))[::step] #* w_e[::step]
     else:
@@ -1369,7 +1369,7 @@ def _circular_slice(data,
     r = np.arange(0, nz, 1)
 
     # start slicing
-    print ('circular slice...')
+    #print ('circular slice...')
     cslice = np.zeros([nz,npa])
     for ipa in range(npa):
         rotimage      = imrotate_2d(data, - pa[ipa])
@@ -1413,7 +1413,7 @@ def circular_slice(image,
     r = r[y0:]
 
     # start slicing
-    print ('circular slice...')
+    #print ('circular slice...')
     cslice = np.zeros([nz,npa])
     for ipa in range(npa):
         rotimage      = imrotate_2d(data, - pa[ipa])
