@@ -276,10 +276,10 @@ class AstroCanvas():
         '''
         Return an axis at the figure corner.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         loc : {'lower left', 'lower right', 'upper right', 'upper left'}
-            The location of the corner extract.
+            The location of the corner to extract.
         '''
         loc = loc.replace('bottom', 'lower')
         loc = loc.replace('top', 'upper')
@@ -937,6 +937,8 @@ class AstroCanvas():
         '''
         Draw a PV diagram.
 
+        Parameters
+        ----------
         image : Imfits object
             Input image in the Imfits object.
         color : bool

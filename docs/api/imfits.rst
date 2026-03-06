@@ -37,6 +37,7 @@ imfits.au
 
 .. automodule:: imfits.au
    :members:
+   :exclude-members: get_contour_radius, get_rmsmap, radial_bin, imrotate_2d, lnfunc_G93, _lnfunc_G93, chi_lnfunc_G93, gaussian2D, rotate2d, regrid_image, estimate_noise, get_1Dresolution, dropaxes, bin_data, binning_1d, _circular_slice, circular_slice
    :undoc-members:
    :show-inheritance:
 

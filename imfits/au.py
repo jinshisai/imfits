@@ -1,5 +1,5 @@
 '''
-Analysis utilities for Imfits.
+Analysis utilities for Imfits objects.
 '''
 
 import copy
@@ -28,12 +28,18 @@ pcTOcm = 3.09e18        # pc --> cm
 # Functions
 def match_images(image, ref_image,):
     '''
-    Regrid an input image so that it matches the reference image grid.
+    Regrid an image so that it matches the reference image grid.
 
     Parameters
     ----------
-    input (Imfits): Input image to be regridded.
-    reference (Imfits): Reference image.
+    image : Imfits object
+        Image to regrid.
+    ref_image : Imfits object
+        Reference image.
+
+    Returns
+    -------
+    N dimensional data array, where N is the dimension of the input data.
     '''
 
     xx_ref = ref_image.xx.copy()
@@ -67,18 +73,45 @@ def getflux(image, rms=None, aptype='circle',
 
     Parameters
     ----------
-    image (object): Input image. Must be Imfits object,
-     or ndarray when inmode_data=True.
-    rms (float): rms noise level.
-    aptype (str): Aperture type. Circule or ellipse are supported.
-    r (float): Radial range where flux is measured (arcsec).
-    semimaj (float): Semi-major axis of an elliptical aperture (arcsec).
-    semimin (float): Semi-minor axis of an elliptical aperture (arcsec).
-    pa (float): Position angle of an elliptical aperture measured from north to east (deg).
-    inmode_data (bool): The input image will be treated as ndarray if True.
-     Default False.
-    istokes (int): Index for the stokes axis.
-    ivelocity (int): Index for the velocity axis.
+    image : Imfits object or ndarray
+        Input image.
+    rms : float
+        rms noise level of the image.
+    aptype : {'circle', 'ellipse', 'none'}
+        Aperture type within which the flux is measured.
+    r : float
+        Radius of the circuler aperture in arcsec.
+    semimaj : float
+        Semi-major axis of the elliptical aperture in arcsec.
+    semimin : float
+        Semi-minor axis of the elliptical aperture in arcsec.
+    pa : float
+        Position angle of the elliptical aperture in degree, 
+        measured from north toward east.
+    inmode_data : bool
+        If True, the input image is recognized as ndarray. Default False.
+    istokes : int, optional
+        Index of the stokes axis.
+    ivelocity : int, optional
+        Index of the velocity axis.
+    dx : float, optional
+        Pixel x size, required if inmode_data = True
+    dy : float, optional
+        Pixel y size, required if inmode_data = True
+    beam : list, optional
+        [bmaj, bmin, bpa], required if inmode_data = True
+    xx : ndarray, optional
+        x coordinates 2D array, required if inmode_data = True
+    yy : ndarray, optional
+        y coordinates 2D array, required if inmode_data = True
+
+    Returns
+    -------
+    flux : float
+        Flux.
+    e_flux: float, optional
+        Error of the flux, computed through the error propagation
+        if rms is given.
     '''
     # read data
     if inmode_data:
@@ -159,14 +192,29 @@ def get_contour_radius(image,
     rms, thr, showfig = True, savefig = False,
     outname = None):
     '''
-    Calculate radius from a contour curve.
+    Calculate radial extent of emission
+    from a closed contour curve by taking
+    a mean radius from the geometric center of the contour.
 
     Parameters
     ----------
-     image (Imfits): Imfits object image.
-     rms (float): rms noise level of the map.
-     thr (float): Threshold to draw a contour curve. Should be given in a unit of rms.
-                  E.g., thr = 3 will draw a 3sigma contour and then calculate a mean radius.
+    image : Imfits object
+        Input image
+    rms : float
+        rms noise level of the map.
+    thr : float
+        Contour level in a unit of rms.
+    showfig : bool
+        Show the result if True.
+    savefig : bool
+        Save a figure visualizing the result.
+    outname : str
+        Output file name if savefig = True.
+
+    Returns
+    -------
+    An averaged radius and its error, computed as the standard deviation
+    of radii over azimuthal angles.
     '''
     im = copy.deepcopy(image)
     # mask data
@@ -251,13 +299,24 @@ def get_rmsmap(cube, vwindows=[[]]):
 
 def get_1Dprofile(image, pa, average_side=False):
     '''
-    Get one dimensional profile in a orientation at a position angule.
+    Get one dimensional profile in a orientation at a position angle.
 
-    Args:
-        image (Imfits object): fits image
-        pa (float): Position angle for the 1D cut.
-        average_sides (bool): Take an average of profiles on \
-                              positive and negative sides, or not.
+    Parameters
+    ----------
+    image : Imfits object
+        Input image
+    pa : float
+        Position angle for the 1D cut.
+    average_sides : bool
+        Take an average of profiles on 
+        positive and negative sides, or not.
+
+    Returns
+    -------
+    x : ndarray
+        x coordinates.
+    y : ndarray
+        Extracted 1D profile.
     '''
     im_rot = imrotate(image, -pa)
 
@@ -312,7 +371,7 @@ def get_1Dprofile(image, pa, average_side=False):
         return x, y
 
 
-def radial_profile(image, pa = None, 
+def radial_bin(image, pa = None, 
     inc = None, step = 'Nyquist', 
     rmin = 0., rmax = None, delr = None,
     return_all = False,):
@@ -369,23 +428,77 @@ def radial_profile(image, pa = None,
         return r_bin, prof, e_prof
 
 
+
 def cs_radial_profile(image, rms = None, pa = None, 
     inc = None, step = 'Nyquist', return_all = False, npa = 361,
     pa_min = -180., pa_max = 180., error_type = 'stat',
     istokes = None, ivelocity = None):
     '''
-    Calculate radial profile from a given image by taking azimuthal average.
+    Use radial_profile.
+    '''
+    print('CAUTION\tcs_radial_profile was renamed radial_profile.')
+    print('CAUTION\tplease use radial_profile.')
+    print('CAUTION\tcs_radial_profile will be removed in future release.')
+    return radial_profile(
+        image, rms = rms, pa = pa, 
+        inc = inc, step = step, return_all = return_all, npa = npa,
+        pa_min = pa_min, pa_max = pa_max, error_type = error_type,
+        istokes = istokes, ivelocity = ivelocity):
+
+
+def radial_profile(image, rms = None, pa = None, 
+    inc = None, step = 'Nyquist', return_all = False, npa = 361,
+    pa_min = -180., pa_max = 180., error_type = 'stat',
+    istokes = None, ivelocity = None):
+    '''
+    Calculate an azimuthally-averaged radial profile from an input image.
+    Sky deprojection can be applied assuming a thin disk 
+    if position and inclination angles are given.
 
     Parameters
     ----------
-     image (Imfits): Imfits image.
-     pa (float): Position angle of the object. Used to deproject image.
-     inc (float): Inclination angle of the object. Used to deproject image.
-     step (str or int): Sampling step. Default is Nyquist sampling. Step must be given in unit of pixel.
-     return_all (bool): Return all results if true.
-     npa (int): Number of bin along azimuthal direction. Default 361, resulting in 1deg step.
-     error_type (str): Type of output error. Must be stat (statistical error) or var (root variance).
-      If error_type = stat, rms must be provided.
+    image : Imfits object
+        Input image.
+    rms : float
+        Image rms noise.
+    pa : float, optional
+        Position angle of the object. Used to deproject image.
+    inc : float, optional
+        Inclination angle of the object. Used to deproject image.
+    step : str or int
+        Sampling step in unit of pixel. 
+        Default is Nyquist sampling.
+    return_all : bool
+        Return full results if true.
+    npa : int
+        Number of bins along the azimuthal direction. Default 361, meaning 1 deg steps.
+    pa_min, pa_max : float, optional
+        Minimum and maximum position angles, over which an azimuthal average is taken.
+        Default is -180 deg to 180 deg, covering 360 deg.
+    error_type : {'stat', 'var'}
+        Type of output error; statistical error ('stat') calculated with
+        rms and error propagation, or root variance ('var') over azimuthal angles.
+        If error_type = stat, rms must be provided.
+    istokes : int, optional
+        Index of the stokes axis.
+    ivelocity : int, optional
+        Index of the velocity axis.
+
+
+    Returns
+    -------
+    r : ndarray
+        Radial coordinates
+    pa : ndarray, optional
+        Position angles. Output only if return_all = True.
+    cslice : ndarray, optional
+        2D data mapped to radial-PA plane. Output only if return_all = True.
+    w_e : ndarray, optional
+        Weightings to account for oversampling. Output only if return_all = True.
+    prof : ndarray
+        Azimuthally-averaged radial profile.
+    e_prof : ndarray
+        Error of the radia profile.
     '''
     # sky deprojection
     if (pa is not None) & (inc is not None):
@@ -424,8 +537,8 @@ def cs_radial_profile(image, rms = None, pa = None,
     elif error_type == 'var':
         e_prof = np.sqrt(np.nanvar(cslice, axis = 1))[::step] #* w_e[::step]
     else:
-        print('ERROR\cs_radial_profile: Input error_type is not correct.')
-        print('ERROR\cs_radial_profile: error_type must be stat or var.')
+        print('ERROR\tradial_profile: Input error_type is not correct.')
+        print('ERROR\tradial_profile: error_type must be stat or var.')
         return 0
 
     if return_all:
@@ -438,9 +551,17 @@ def imrotate(image, angle=0):
     '''
     Rotate the input image
 
-    Args:
-        image (Imfits object): fits image.
-        angle (float): Rotational Angle. Anti-clockwise direction will be positive (same to the Position Angle). in deg.
+    Parameters
+    ----------
+    image : Imfits object
+        Input image.
+    angle : float
+        Rotational Angle in deg. Anti-clockwise direction 
+        will be positive (same as the position angle).
+
+    Returns
+    -------
+    Rotated image as N dimensional ndarray, where N is the dimension of the input image.
     '''
     import scipy.ndimage
 
@@ -497,7 +618,39 @@ def gaussian_cube_fit(image, rms,
     save_as_fits = False, outname = None, 
     overwrite = True, nthr = 3):
     '''
-    Fit cube with Gaussian pixel by pixel
+    Fit cube with a Gaussian line profile function pixel by pixel.
+    The definision of the line width is the Doppler line width rather than
+    sigma of Gaussian.
+
+    Parameters
+    ----------
+    image : Imfits object
+        Input cube image.
+    rms : float
+        rms noise of the cube.
+    sampling : list
+        Sampling steps in unit of beam.
+    isaxis : int, optional
+        Index of the stokes axis.
+    save_as_fits : bool
+        Save the fitting results as fits files.
+    outname : str
+        Output file name that is used when save_as_fits = True.
+        Should include '.fits'.
+    ovwerwrite : bool
+        Overwrite fits files when fits files with outname exist.
+    nthr : int
+        Minimum number of data above three sigma.
+        Fitting will be skipped if n_data (>3sigma) <= nthr.
+
+    Returns
+    -------
+    pfit, e_pfit : ndarray
+        The optimized parameters and their fitting errors 
+        as 3D array in a shape of (3, ny, nx), where nx and ny are
+        lengths of x and y axes of the input cube.
+        The first axis is amplitude, centroid velocity and line width
+        from start to end.
     '''
     cube = image.copy()
 
@@ -552,10 +705,35 @@ def sky_deprojection(image, pa, inc,
     method = 'cubic', conserve_flux = True,
     istokes = None, ivelocity = None):
     '''
-    Deproject image from sky coordinates to local coordinates.
+    Deproject image assuming a thin disk.
 
     Parameters
     ----------
+    image : Imfits object
+        Input image.
+    pa : float, optional
+        Position angle of the object. Used to deproject image.
+    inc : float, optional
+        Inclination angle of the object. Used to deproject image.
+    inmode_data : bool
+        If True, the input image is recognized as ndarray. Default False.
+    xx : ndarray, optional
+        x coordinates 2D array, required if inmode_data = True.
+    yy : ndarray, optional
+        y coordinates 2D array, required if inmode_data = True.
+    method : str
+        Interpolation method.
+    conserve_flux : bool
+        Intensity is rescaled for conserving flux if True. Default is True.
+        For conserving the intensity scale, set it to Fales.
+    istokes : int, optional
+        Index of the stokes axis.
+    ivelocity : int, optional
+        Index of the velocity axis.
+
+    Returns
+    -------
+    Deprojected image as ndarray.
     '''
 
     # Rotation angles
@@ -1043,16 +1221,20 @@ def dropaxes(data, istokes=0, ivelocity=0):
         return 0
 
 
-def generate_noisemap(rms, 
-    image = None, xx = None, yy = None,
-    beam = None,
-    ):
+def generate_noisemap(rms, image = None,):
     '''
-    Generate noise map.
-    Currently, only an imfits image input and Jy/beam unit is supported.
-
-    rms (float): rms of the noise map (Jy/beam)
-    image (imfits object): input image.
+    Generate a noise map. Currently, only Jy/beam unit is supported.
+    
+    Parameters
+    ----------
+    rms : float
+        rms noise of the noise map in Jy/beam.
+    image : Imfits object
+        Reference image.
+    
+    Returns
+    -------
+    Noise map as ndarray in the same dimension as the input image.
     '''
 
     shape = image.data.shape
