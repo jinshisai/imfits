@@ -702,7 +702,7 @@ def gaussian_cube_fit(image, rms,
 
 def sky_deprojection(image, pa, inc,
     inmode_data=False, xx=[], yy=[], 
-    method = 'cubic', conserve_flux = True,
+    method = 'linear', conserve_flux = True,
     istokes = None, ivelocity = None):
     '''
     Deproject image assuming a thin disk.
