@@ -107,6 +107,13 @@ class Imfits():
 
 
     def copy(self):
+        '''
+        Make a copy.
+
+        Returns
+        -------
+        Copied Imfits object.
+        '''
         return self.__copy__()
 
 
@@ -766,8 +773,8 @@ class Imfits():
             #self.yaxis = yy_new[:, self.ny//2].deg # or -= y_offset.deg
 
 
+    '''
     def estimate_noise(self, nitr=1000, thr=2.3):
-        '''
         Estimate map noise by calculating rms iteratively.
         For more precise measurements of the noise level,
         use getrms_cube method.
@@ -778,7 +785,6 @@ class Imfits():
             Number of the maximum iteration.
         thr : float
             Threshold where iteration stops.
-        '''
 
         d = self.data.copy()
         rms = np.sqrt(np.nanmean(d*d))
@@ -792,7 +798,7 @@ class Imfits():
 
         print('Reach maximum number of iteration.')
         return rms
-
+    '''
 
     def getrms_cube(self, vwindows=[[]], 
         radius=None, saxis=0, mask = None):
