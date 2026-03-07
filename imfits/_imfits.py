@@ -591,8 +591,8 @@ class Imfits():
         '''
         Reorder fits axes.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         order (tuple): New order of axes, specified using original axis indices.
             E.g., in order to swich the 2nd and 4th axes,
             the input will be (0, 3, 2, 1). The index starts with zero.
@@ -674,7 +674,7 @@ class Imfits():
         '''
         Shift the coordinate center.
 
-        Paramters
+        Parameters
         ---------
         coord_center : str
             New map coordinate center, in format of '00h00m00.00s 00d00m00.00s', 
