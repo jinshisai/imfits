@@ -507,6 +507,7 @@ def radial_profile(image, rms = None, pa = None,
             conserve_flux = False)
     else:
         data = np.squeeze(image.data)
+        inc = 0.
 
     # circular slice
     _, pa, cslice = _circular_slice(data, npa = npa,
