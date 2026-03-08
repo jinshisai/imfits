@@ -2987,8 +2987,12 @@ def add_scalebar(ax, scalebar: list, orientation='horizontal',
         [barlength, bartext, loc, barcolor, fontsize] or 
         [barx, bary, barlength, textx, texty, bartext, barcolor, fontsize].
         barlength is the length of the scaler bar, and bartext is the scaler bar label. 
-        loc is the location of the scale bar, and can be 'bottom left',
-        'bottom right', 'top left' or 'top right'. barcolor is the color of the scaler bar and text.
+        loc is the location of the scale bar; it can be 'bottom left',
+        'bottom right', 'top left', 'top right', or a list of 
+        [(bar_xloc, bar_yloc), (text_xloc, text_yloc)]. xxx_xloc/xxx_yloc
+        takes a value from zero to one, which corresponds to left/bottom and right/top
+        of the axis, respectively.
+        barcolor is the color of the scaler bar and text.
         fontsize is the font size for the label.
         For the second option, barx and bary are exact coordinates of the scaler bar, and 
         textx and texty are exact coordiantes of the scale bar label.
