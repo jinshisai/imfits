@@ -1034,11 +1034,13 @@ class Imfits():
 
         Parameters
         ----------
-        coversion : {'IvtoTb', 'TbtoIv', 'pas2topmb'}
+        coversion : {'IvtoTb', 'TbtoIv', 'IvtoTp', 'pas2topmb'}
             Conversion to be applied. 
             'IvtoTb' converts Iv in Jy/beam to Tb in K. 'TbtoIv' applys 
-            conversion the other way around. 'pas2topmb' converts
-            Jy/arcsec^2 to Jy/beam.
+            conversion the other way around. 'IvtoTp' converts
+            Iv to T through the full Planck function without using
+            the Rayleigh-Jeans approximation. 
+            'pas2topmb' converts Jy/arcsec^2 to Jy/beam.
         '''
 
         if conversion == 'IvtoTb':
@@ -1050,7 +1052,7 @@ class Imfits():
         elif conversion == 'pas2topbm':
             self.data = pas2TOpbm(self.data, self.delx, 
                 self.dely, self.beam[0]/3600., self.beam[1]/3600.)
-        elif conversion == 'IvtoTex':
+        elif conversion == 'IvtoTp':
             self.data = IvTOTex(self.data, self.restfreq, 
                 self.beam[0]/3600, self.beam[1]/3600.)
         else:
