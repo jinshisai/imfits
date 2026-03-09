@@ -87,7 +87,7 @@ Continuum maps, moment maps, channel maps and position-velocity (PV) diagrams ar
 Citation
 --------
 
-If you use `imfits` for your publications, please cite it via [zenodo](https://zenodo.org/records/18918665) in the software or acknowledgment section:
+If you use `imfits` for your publications, please cite it via [zenodo](https://zenodo.org/records/18918662) in the software or acknowledgment section:
 
 ```
 @software{imfits:2026,
@@ -96,8 +96,8 @@ If you use `imfits` for your publications, please cite it via [zenodo](https://z
   month        = mar,
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {v2.3.5},
-  doi          = {10.5281/zenodo.18918665},
-  url          = {https://doi.org/10.5281/zenodo.18918665},
+  version      = {v2.3.6},
+  doi          = {10.5281/zenodo.18925283},
+  url          = {https://doi.org/10.5281/zenodo.18925283},
 }
 ```
