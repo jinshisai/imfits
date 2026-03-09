@@ -50,7 +50,15 @@ Tutorials
    tutorials/demo_pvdiagram
 
 
-Known issues
+API References
+==================
+.. toctree::
+   :maxdepth: 2
+
+   api/index
+
+
+Known Issues
 ====================
 .. toctree::
    :maxdepth: 2

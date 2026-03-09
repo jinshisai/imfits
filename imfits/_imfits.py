@@ -26,10 +26,43 @@ clight     = 2.99792458e10 # light speed [cm s^-1]
 from .mapunit import IvTOJT, TbTOIv, pas2TOpbm, IvTOTex
 from . import iu
 
-### Imfits
+
+
 class Imfits():
     '''
-    Read a fits file, store the information, and draw maps.
+    Read and store fits data and header information. 
+    Spatial coordinates, velocity and frequency are saved in units of degree, 
+    km/s, and Hz, respectively, by default. 
+    Beam FWHM and PA are saved in units of arcsec and degree, respectively.
+
+    Parameters
+    ----------
+    infile: str
+        Path to the fits file.
+    pv : bool
+        If the input fits file is the position-velocity image or not.
+    frame : str or None, optional
+        Coordinate frame, required if missing in the FITS header.
+    equinox : str, optional
+        Equinox of the coordinate frame; used 
+        when the coordinate frame is Jxxxx and the equinox is missing in the header.
+    axesorder : tuple
+        Order of axes if they need to be reordered. 
+        The new axis order is specified using original axis indices.
+        E.g., to swich the 2nd and 4th axes, use (0, 3, 2, 1). 
+        Indices start at 0.
+    velocity : bool
+        Convert frequency to velocity if True.
+    flip_vaxis : bool
+        Flip the velocity axis if it decreases with increasing index.
+    beam_savetype : {'full', 'average', or 'single'}, optional
+        How to treat CASA multi-beam. See the read_casa_multibeam method 
+        for more details.
+    beam_index : int
+        Index of multi-beam used when beam_savetype = 'single'.
+        See the read_casa_multibeam method for more details.
+    generate_empty_object : bool
+        Generate an empty Imfits object if True.
     '''
 
     def __init__(self, infile, pv=False, 
@@ -37,27 +70,16 @@ class Imfits():
         velocity=True, flip_vaxis = True, 
         generate_empty_object = False,
         beam_savetype = 'full', beam_index = 0):
-        '''
-        Read and save fits data and header information.
 
-
-        Parameters
-        ----------
-         infile (str): Path to the fits file.
-         pv (bool): If the input fits file is for the position-velocity image or not.
-         frame (str or None): Optional. Coordinate frame, 
-            which will be required if it is missing in the fits header.
-         equinox (str): Optional. Equinox of the coordinate frame. It will be used 
-            when the coordinate frame is Jxxxx and the equinox is missing in the header.
-         axesorder (tuple): An order of axes, if they need to be reordered.
-        '''
         self.file = infile
 
         # Generate empty Imfits object
         if generate_empty_object:
             return
 
+        # use only primary HDU
         self.data, self.header = fits.getdata(infile, header=True)
+        self.wcs = WCS(self.header)
 
         self.ifpv = pv
         if pv:
@@ -85,6 +107,13 @@ class Imfits():
 
 
     def copy(self):
+        '''
+        Make a copy.
+
+        Returns
+        -------
+        Copied Imfits object.
+        '''
         return self.__copy__()
 
 
@@ -108,13 +137,28 @@ class Imfits():
         velocity=True, axesorder=(), equinox='J2000',
         beam_savetype = 'full', beam_index = 0):
         '''
-        Get axes of a fits file. x axis and y axis will be in intermediate coordinates.
+        Get axes of a FITS image from header.
 
-        Args:
-            fitsname: input fits file name
-
-        Return:
-            xaxis, yaxis, vaxis, saxis
+        Parameters
+        ----------
+        frame : str or None, optional
+            Coordinate frame, required if missing in the header.
+        velocity : bool
+            Convert frequency to velocity if True.
+        axesorder : tuple, optional
+            Order of axes if they need to be reordered. 
+            The new axis order is specified using original axis indices.
+            E.g., to swich the 2nd and 4th axes, use (0, 3, 2, 1). 
+            Indices start at 0.
+        equinox : str, optional
+            Equinox of the coordinate frame; used 
+            when the coordinate frame is Jxxxx and the equinox is missing in the header.
+        beam_savetype : {'full', 'average', or 'single'}, optional
+            How to treat CASA multi-beam. See the read_casa_multibeam method 
+            for more details.
+        beam_index : int
+            Index of multi-beam used when beam_savetype = 'single'.
+            See the read_casa_multibeam method for more details.
         '''
         # reading fits files
         header = self.header
@@ -305,14 +349,14 @@ class Imfits():
         self.vaxis = vaxis
         self.saxis = saxis
 
-        axes = np.array([xaxis, yaxis, vaxis, saxis], dtype=object)
+        axes = np.array(
+            [self.xaxis, self.yaxis, self.vaxis, self.saxis], dtype=object)
         self.axes  = axes
 
 
     def flip_vaxis(self):
         '''
-        Flip the velocity axis. The order of axes is assumed to be (s, v, y, x).
-        Re-order axis first if this is not the case.
+        Flip the velocity axis. The axis order of (s, v, y, x) is assumed.
         '''
         self.vaxis = self.vaxis[::-1]
         self.delv = self.vaxis[1] - self.vaxis[0]
@@ -333,6 +377,15 @@ class Imfits():
         savetype = 'full', index = 0):
         '''
         Read CASA Multibeam.
+
+        Parameters
+        ----------
+        savetype : {'full', 'average', 'single'}
+            How to treat CASA multibeam. All beams as a function of frequency are stored
+            if 'full'. Beam averaged over frequency is stored if 'average'.
+            A single beam specified by the index parameter is stored if 'single'.
+        index : int
+            Channel index to specify beam to be stored when savetype = 'single'.
         '''
         hdul = fits.open(self.file)
         print(hdul.info())
@@ -366,7 +419,14 @@ class Imfits():
     # Read fits file of Poistion-velocity (PV) diagram
     def read_pvfits(self, axesorder=()):
         '''
-        Read fits file of pv diagram produced by CASA.
+        Read position-velocity FITS header.
+
+        Parameters
+        ----------
+        axesorder : tuple
+            Reorder axes if given. The new axis order is specified 
+            using original axis indices.
+            E.g., to swich the 1st and 2nd axes, use (1, 0, 2). Indices start at 0.
         '''
         # read header
         header = self.header
@@ -531,11 +591,11 @@ class Imfits():
         '''
         Reorder fits axes.
 
-        Parameter
-        ---------
-         order (tuple): New order of axes. Must be given as tuple within which
-            new order is specified by integers. E.g., in order to swich the 2nd and 4th axes,
-            the input will be (0, 3, 2, 1). Note that the 1st axis index is zero following the python rule.
+        Parameters
+        ----------
+        order (tuple): New order of axes, specified using original axis indices.
+            E.g., in order to swich the 2nd and 4th axes,
+            the input will be (0, 3, 2, 1). The index starts with zero.
         '''
         # check
         if type(order) != tuple:
@@ -614,12 +674,15 @@ class Imfits():
         '''
         Shift the coordinate center.
 
-        Args:
-            coord_center: Put an coordinate for the map center.
-               The shape must be '00h00m00.00s 00d00m00.00s', or
-               'hh:mm:ss.ss dd:mm:ss.ss'. RA and DEC must be separated
-               by space.
-            regrid (bool): Interpolate data to make the new grid fit to the old grid
+        Parameters
+        ---------
+        coord_center : str
+            New map coordinate center, in format of '00h00m00.00s 00d00m00.00s', 
+            or 'hh:mm:ss.ss dd:mm:ss.ss'.
+        regrid : bool
+            Interpolate data into an organized grid if True.
+        zero_center : bool
+            Set the coordinate center at the central pixel rather the border of two central pixels.
         '''
         # ra, dec
         cc = SkyCoord(self.cc[0], self.cc[1], frame=self.frame.lower(), 
@@ -710,17 +773,18 @@ class Imfits():
             #self.yaxis = yy_new[:, self.ny//2].deg # or -= y_offset.deg
 
 
+    '''
     def estimate_noise(self, nitr=1000, thr=2.3):
-        '''
         Estimate map noise by calculating rms iteratively.
         For more precise measurements of the noise level,
         use getrms_cube method.
 
         Parameters
         ----------
-        nitr (int): Number of the maximum iteration.
-        thr (float): Threshold where iteration stops.
-        '''
+        nitr : int
+            Number of the maximum iteration.
+        thr : float
+            Threshold where iteration stops.
 
         d = self.data.copy()
         rms = np.sqrt(np.nanmean(d*d))
@@ -734,14 +798,25 @@ class Imfits():
 
         print('Reach maximum number of iteration.')
         return rms
-
+    '''
 
     def getrms_cube(self, vwindows=[[]], 
         radius=None, saxis=0, mask = None):
         '''
-        Calculate rms based on line free channels.
+        Calculate rms using line free channels.
 
-        Parameters:
+        Parameters
+        ----------
+        vwindows : list
+            Velocity or frequency windows to be excluded. Multiple windows can be specified
+            by nesting list. E.g., [[0, 5], [7, 10]] will exclude 0--5 km/s and 7--10 km/s.
+        radius : float
+            Radial threshold in arcsec, within which rms noise will be calculated.
+        saxis : int
+            Index of the Stokes axis.
+        mask : ndarray
+            Flexible mask, defined with numpy.ndarray. The mask array is supposed to be 
+            a bool array in the same shape of data.
         '''
         naxis = self.naxis
         if naxis == 3:
@@ -809,13 +884,15 @@ class Imfits():
 
     def binning(self, nbin, axis = 'velocity'):
         '''
-        Rebin data.
+        Bin data.
 
         Parameters
         ----------
-        nbin (int): Binning factor. E.g., if nbin = 3, original three pixels will be
-         binned into a single pixel.
-        axis (str): 'velocity' or 'xy'.
+        nbin : int
+            Binning factor. E.g., if nbin = 3, original three pixels will be
+            binned into a single pixel.
+        axis : {'velocity' or 'xy'}
+            Axis to be binned.
         '''
         if (axis == 'velocity') | (axis == 'v'):
             self.binning_v(nbin)
@@ -824,11 +901,18 @@ class Imfits():
         else:
             print('ERROR\tbinning: axis must be xy or v.')
             return 0
+        self.axes = [self.xaxis, self.yaxis, self.vaxis, self.saxis]
 
 
     def binning_v(self, nbin,):
         '''
-        Rebin data along velocity or frequency axis.
+        Bin data along the velocity or frequency axis.
+
+        Parameters
+        ----------
+        nbin : int
+            Binning factor. E.g., if nbin = 3, original three pixels will be
+            binned into a single pixel.
         '''
         nv = self.nv
         ncut = nv%nbin
@@ -854,7 +938,11 @@ class Imfits():
 
     def binning_xy(self, nbin,):
         '''
-        Rebin data in the xy spatial plane.
+        Bin data in the xy spatial plane.
+
+        nbin : int
+            Binning factor. E.g., if nbin = 3, original three pixels will be
+            binned into a single pixel.
         '''
         nx, ny = self.nx, self.ny
         if type(nbin) == int:
@@ -942,14 +1030,15 @@ class Imfits():
 
     def convert_units(self, conversion='IvtoTb'):
         '''
-        Unit conversion
+        Convert unit of intensity.
 
         Parameters
         ----------
-            coversion (str):
-             IvtoTb -- Convert Iv to Tb
-             TbtoIv -- Convert Tb to Iv
-             pas2topbm --  Convert Jy/arcsec^2 to Jy/beam
+        coversion : {'IvtoTb', 'TbtoIv', 'pas2topmb'}
+            Conversion to be applied. 
+            'IvtoTb' converts Iv in Jy/beam to Tb in K. 'TbtoIv' applys 
+            conversion the other way around. 'pas2topmb' converts
+            Jy/arcsec^2 to Jy/beam.
         '''
 
         if conversion == 'IvtoTb':
@@ -972,18 +1061,29 @@ class Imfits():
 
 
     def attach_vectors(self, infile, sep='\s+', rotate=False,
-        comment='=', pandas_args=[]):
+        comment='=', pandas_args = None):
         '''
-        Read and contain polarization/B-field vectors.
+        Read and attach polarization/B-field vectors.
 
         Parameters
         ----------
-
+        infile : str
+            Path to the table file contaiting vectors.
+        sep : str
+            Seperation character to be used.
+        rotate : bool
+            Rotate vectors by 90 degree if True.
+        comment : 'str'
+            Comment-out character in the table file.
+        pandas_args : dict or None
+            Args for pandas.read_csv, with which the table file is read.
+            If given, sep and comment must be also provided in pandas_args
+            instead of the method input parameters.
         '''
         import pandas as pd
 
         # read
-        if len(pandas_args):
+        if pandas_args is not None:
             self.vectors = pd.read_csv(infile, *pandas_args)
         else:
             self.vectors = pd.read_csv(infile, sep=sep, comment=comment)
@@ -1009,14 +1109,24 @@ class Imfits():
     def getmoments(self, moments=[0], vrange=[], threshold=[],
         outfits=True, outname=None, overwrite=False, i_stokes=0):
         '''
-        Calculate moment maps.
+        Calculate moment maps. For moment 1 and 2, error maps are also calculated
+        through the error propagation.
 
-        moments (list): Index of moments that you want to calculate.
-        vrange (list): Velocity range to calculate moment maps.
-        threshold (list): Threshold to clip data. Shoul be given as [minimum intensity, maximum intensity]
-        outfits (bool): Output as a fits file?
-        outname (str): Output file name if outfits=True.
-        overwrite (bool): If overwrite an existing fits file or not.
+        Parameters
+        ----------
+        moments : list
+            Integers of moments to calculate. E.g., [0,1] will calculate
+            moment 0 and 1.
+        vrange : list
+            Velocity range to be used for calculating moment maps.
+        threshold : list
+            Threshold to clip data, given as [minimum intensity, maximum intensity]
+        outfits : bool
+            Save results to a fits file if True
+        outname : str
+            Output fits file name if outfits=True.
+        overwrite : bool
+            Overwrite an existing fits file if True.
         '''
 
         # data check
@@ -1191,7 +1301,14 @@ class Imfits():
 
     def get_momentzero_rms(self, rms_ch, vrange = None):
         '''
-        Calculate theoretically expected rms of moment 0 map.
+        Calculate expected rms noise of the moment 0 map through the error propagation.
+
+        Parameters
+        ----------
+        rms_ch : float
+            rms noise per channel.
+        vrange : list or None
+            Integrated velocity range, given as [vmin, vmax].
         '''
         if vrange is not None:
             index = np.where( (self.vaxis >= vrange[0]) & (self.vaxis <= vrange[1]))
@@ -1206,6 +1323,26 @@ class Imfits():
     def search_for_line_detection(self, 
         threshold, cond_area = 0.7, 
         saxis = 0, radius = None, output_mode = 'minmax'):
+        '''
+        Search for line-detected channels.
+
+        Parameters
+        ----------
+        threshold : float
+            Noise threshold, above which the line is defined as detected.
+        cond_area : float
+            Area threshold in unit of mean beam size. 
+            If the line emission area detected above the noise threshold is smaller
+            than the area threshold, the emission is regarded as noise.
+        saxis : int
+            Stokes axis index.
+        radius : float or None
+            A radius cutting off outer regions of the image.
+        output_mode : 'minmax' or 'full'
+            Returns all channel indices of emission detected if 'full'.
+            Returns starting and ending channel indices of emission detected if 'minmax'.
+            Note that line-detected channels can be discontinuous.
+        '''
         if self.naxis <= 2:
             print('ERROR\tsearch_for_line_detection: No frequency axis is found.')
             print('ERROR\tsearch_for_line_detection: This function is for cube images.')
@@ -1257,13 +1394,18 @@ class Imfits():
         vlim: list = [],
         slim: list = []):
         '''
-        Trim a cube image without interpolation to fit to given axis ranges.
+        Trim a cube image. The extent of each axis should be given as [min, max].
 
         Parameters
         ----------
-            xlim (list): x range. Must be given as [xmin, xmax] in arcsec.
-            ylim (list): y range. Must be given as [ymin, ymax] in arcsec.
-            vlim (list): v range. Must be given as [vmin, vmax] in km s^-1.
+        xlim : list
+            Range of x coordinates in arcsec.
+        ylim : list)
+            Range of y coordinates in arcsec.
+        vlim : list
+            Velocity range in km s^-1, or frequency range in Hz.
+        slim : list
+            Stokes range.
         '''
         def index_between(t, tlim, mode='all'):
             if not (len(tlim) == 2):
@@ -1341,6 +1483,9 @@ class Imfits():
 
 
     def get_mapextent(self, unit='arcsec'):
+        '''
+        Get map extent.
+        '''
         xaxis = self.xaxis
         delx = self.delx
         yaxis = self.vaxis if self.ifpv else self.yaxis
@@ -1359,24 +1504,24 @@ class Imfits():
 
     def get_1dresolution(self, pa):
         '''
-        Calculate beam size along a certain direction given by a position angle.
+        Calculate FWHM beam size along a 1D cut in a particular position angle.
+
+        This method solves get the FWHM resolution in the 1D cut by solving the 
+        following equations.
+
+        An elliptical beam can be expressed as (x/bmaj)**2 + (y/bmin)**2 = 1 
+        with FWHMs along the beam major (bmaj) and minor (bmin) axes,
+        taking the beam major axis to align with x axis.
+        A line toward a position angle theta measured from xaxis to yaxis is
+        y = x*tan(theta)
+
+        The crossing point of the beam ellipse and line is the resolution 
+        along a cut in the position angle.
 
         Parameters
         ----------
-         - self: Imfits object
-         - pa: position angle of a direction in which you want to calculate a resolution.
-
-        Equations
-        ---------
-         Describe a beam with an ellipse:
-          (x/bmaj)**2 + (y/bmin)**2 = 1
-          taking the beam major axis to be x-axis.
-
-         Line toward an angle theta measured from x-axis to y-axis:
-          y = x*tan(theta)
-
-         The crossing point is the resolution in a one-dimensional slice.
-          --> Solve these equations to get r, which is the resolution.
+        pa : float
+            Position angle of the cut.
         '''
         bmaj, bmin, bpa = self.beam
         del_pa = pa - bpa          # angle from the major axis of the beam (i.e., x-axis) to the 1D-slice direction.
@@ -1389,11 +1534,14 @@ class Imfits():
 
     def get_relative_coordinates(self, coord, frame=None):
         '''
-        Convert a coordinate to a relative coordinate.
+        Convert a given coordinate to a relative coordinate to the map center.
 
         Parameters
         ----------
-            coord (str): Absolute coordinate.
+        coord : str
+            An absolute coordinate in the same coordinate frame as that of the the image.
+            The format of the coordinate is 
+            'hh:mm:ss.ss dd:mm:ss.ss' or 'hms dms' if RA-Dec.
         '''
         if frame is not None:
             pass
@@ -1417,6 +1565,22 @@ class Imfits():
 
     def sampling(self, steps: list, 
         units = 'resolution', keep_center = True):
+        '''
+        Resampling data.
+
+        Parameters
+        ----------
+        steps : list
+            Sampling steps. E.g., steps = [2,2,4], data are resampled along x and y axes
+            in steps of 2 x units, and along v axis in steps of 4 x units.
+            Units are defined by the units parameter; see below.
+            If you want to resample data only along a particular axis, 
+            give sampling steps that are finner than those of original data for other axes.
+        units : 'resolution', 'pixel', or 'absolute'
+            Units of sampling step.
+        keep_center : bool
+            Keep map center if True.
+        '''
         d = self.data.copy()
         nd = len(d.shape)
         nsteps = len(steps)
@@ -1524,6 +1688,14 @@ class Imfits():
 
 
     def update_hdinfo(self, vunit='freq'):
+        '''
+        Update header by reading data.
+
+        Parameters
+        ----------
+        vunit : 'velocity' or 'freq'
+            Dimension of the 3rd axis. Velocity or frequency.
+        '''
         # dimension of data
         self.naxis = len(self.data.shape)
 
@@ -1595,6 +1767,21 @@ class Imfits():
     def writeout(self, outname, 
         comment = None, hdkeys = None, overwrite = False,
         vunit = 'freq'):
+        '''
+        Export an image to a fits file. This method has not been 
+        tested enough yet. Please use it with causion.
+
+        Parameters
+        ----------
+        outname : str
+            Output fits file name.
+        comment : str
+            Comment to put in the COMMENT column of the FITS header.
+        hdkeys : dict
+            Additional header information to add or modify in the FITS header.
+            It can be given as a dictonary with header keys and their values;
+            e.g., {'BUNIT': 'K'}.
+        '''
         print('This function is under development. Might return a wrong result.')
         print('No multibeam output is currently supported.')
         print('Please use it with causion')

@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
-'''
-Made and developed by J.Sai.
 
-email: jn.insa.sai@gmail.com
-'''
-
+# Made and developed by J.Sai.
+# email: jn.insa.sai@gmail.com
 
 
 ### Modules
@@ -43,8 +40,41 @@ figsize_def = (11.69, 8.27)
 
 class AstroCanvas():
     '''
-    A Python class to maintain figures from fits images/cubes.
+    A Python class working with Imfits to manage astronomical plots.
 
+
+    Parameters
+    ----------
+    nrow_ncol : tuple
+        Number of rows and columns given as (n_rows, n_columns).
+    axes_pad : tuple
+        Padding between each panel given as (horizontal padding, vertical padding), 
+        where padding takes from zero to one.
+    fig : matplotlib Figure object, optional
+        Will use the given Figure object if given. 
+        Otherwise, AstroCanvas will generate a Figure object.
+    imagegrid : bool
+        Use ImageGrid of mpl_toolkits if True. 
+        This option allows a better spacing between panels.
+    cbar_mode : {'each', 'signle', 'edge'} or None
+        Used when imagegrid=True to specify a colorbar mode.
+        'each' puts a color bar aside on each panel, 'single' puts a single ecolor bar 
+        on the figure, and 'edge' puts color bars on panels at the edge of the figure.
+        None will generate no color bar.
+    cbaroptions : list or tuple
+        Used when imagegrid=True to setup a colorbar(s).
+        Must be given in a format of [location, width, padding]. 
+        The location can be 'right', 'top', 'left', or 'bottom'. 
+        The width and padding can be given as a percentage of the axis width
+        in str; e.g., ['right', '3%', '3%'].
+    label_mode : {'L', '1', or 'all'}
+        Used when imagegrid=True to setup axis labels. 'L' puts axis labels on panels at
+        the left and bottom edge of the figure. '1' puts axis labels only on the bottom-left panel.
+        'all' puts axis labels on all panels.
+    figsize : tuple
+        Figure size. Default is (11.69, 8.27), which corresponds to A4 landscape.
+    pltconfig : dict
+        A dictionary object containting matplotlib rcParams to change the plotting style.
     '''
 
     def __init__(self, 
@@ -56,32 +86,9 @@ class AstroCanvas():
         cbaroptions = ['right', '3%', '0%'],
         label_mode = '1',
         figsize: tuple = figsize_def,
-        pltconfig: dict = pltconfig_def) -> None:
-        '''
-        Initialize and set a canvas.
+        pltconfig: dict = pltconfig_def,
+        projection = None) -> None:
 
-        Parameters
-        ----------
-         - nrow_ncol (tuple): Number of rows and columns. Must be given in a format of 
-           (n_rows, n_columns).
-         - axes_pad (tuple): Padding between each pannel. Must be given in a format of
-           (horizontal padding, vertical padding). Each padding can be specified by a number 
-           from zero to one.
-         - fig (matplotlib object): Figure object of matplotlib if you want to give by yourself.
-           AstroCanvas will generate if nothing is given.
-         - imagegrid (bool): Use ImageGrid of mpl_toolkits or not. It can be used for 
-           better spacing between pannels.
-         - cbar_mode (str): Only used when imagegrid=True to specify a colorbar mode. Must be
-           chosen from 'each', 'signle', 'edge', or None.
-         - cbaroptions (list or tuple): Only used when imagegrid=True to setup a colorbar(s).
-           Must be given in a format of [location, width, padding]. The location can be 'right', 'top'
-           'left', 'bottom'. The width and padding can be given as a percentage of the axis width
-           in str (e.g., '2%').
-         - label_mode (str): Only used when imagegrid=True to setup axes labels. Can be either of
-           'L', '1', or 'all'.
-         - figsize (tuple): Figure size. Default is (11.69, 8.27), which is A4 landscape.
-         - pltconfig (dict): Dictionary of matplotlib rcParams to change the plotting style.
-        '''
         # style
         self.style(pltconfig)
 
@@ -116,6 +123,9 @@ class AstroCanvas():
 
 
     def reset_axes(self):
+        '''
+        Remove all existing axes.
+        '''
         print('Axes exist in Canvas. Are you sure to reset them?')
         while (ans == 'y') | (ans == 'n'):
             print('Type [y/n].')
@@ -132,6 +142,9 @@ class AstroCanvas():
 
 
     def add_axis(self):
+        '''
+        Add an axis to Figure.
+        '''
         if self.naxes == 0:
             self.axes = [fig.add_subplot(111)] # axes
             self.naxes = len(self.axes)
@@ -149,7 +162,23 @@ class AstroCanvas():
 
 
     def add_axes(self, nrow, ncol,
-        wspace=None, hspace=None):
+        wspace=None, hspace=None, projection = None):
+        '''
+        Add axes to Figure.
+
+        Parameters
+        ----------
+        nrow : int
+            Number of rows.
+        ncol : int
+            Number of columns.
+        wspace : float
+            Horizontal spacing between panels.
+        hspace : float
+            Vertical spacing between panels.
+        projection:
+            Projection for plots. It is for future development and currently not used.
+        '''
         import itertools
         if self.naxes == 0:
             gs = GridSpec(nrows=nrow, ncols=ncol, figure=self.fig,
@@ -181,6 +210,9 @@ class AstroCanvas():
 
 
     def style(self, config):
+        '''
+        Update plot style with matplotlib.pyplot.rcParams.
+        '''
         #for i in config.keys():
         #mpl.rc(i, config[i])
         self._config = config
@@ -193,16 +225,26 @@ class AstroCanvas():
         cbaroptions=['right', '3%', '0%'], 
         label_mode='1'):
         '''
-        Generate grid to contain multiple figures. Just using ImageGrid of matplotlib but adjust default parameters for convenience.
-         For more detail of the function, check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
+        Generate grid (i.e., axes) using ImageGrid of matplotlib.
+        For more detail of ImageGrid, 
+        check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
 
         Parameters
         ----------
-         nrow(int): Number of rows
-         ncol(int): Number of columns
-         axes_pad (tuple or float): Padding between axes. In cases that tuple is given, it will be treated as (vertical, horizontal) padding.
-         share_all (bool): Whether all axes share their x- and y-axis.
-         cbarmode: If each, colorbar will be shown in each axis. If single, one common colorbar will be prepared. Default None.
+        nrow : int
+            Number of rows
+        ncol : int
+            Number of columns
+        axes_pad : tuple or float
+            Padding between axes. If tuple is given, 
+            it will be treated as (vertical, horizontal) padding.
+        share_all : bool
+            Whether all axes share their x- and y-axis or not.
+        cbar_mode : {'each', 'signle', 'edge'} or None
+            Colorbar mode. 'each' puts a color bar aside on each panel, 
+            'single' puts a single ecolor bar on the figure, 
+            and 'edge' puts color bars on panels at the edge of the figure.
+            None will generate no color bar.
         '''
 
         # Generate grid
@@ -232,11 +274,12 @@ class AstroCanvas():
 
     def ax_corner(self, loc='lower left'):
         '''
-        Return axis at the corner.
+        Return an axis at the figure corner.
 
-        Parameter
-        ---------
-        loc (str): the corner location to be extracted. 'upper/lower left/right'.
+        Parameters
+        ----------
+        loc : {'lower left', 'lower right', 'upper right', 'upper left'}
+            The location of the corner to extract.
         '''
         loc = loc.replace('bottom', 'lower')
         loc = loc.replace('top', 'upper')
@@ -260,6 +303,20 @@ class AstroCanvas():
     def savefig(self, outname: str, 
         ext : str = 'pdf', transparent: bool = True, 
         dpi = None):
+        '''
+        Save figure.
+
+        Parameters
+        ----------
+        outname : str
+            Output file name.
+        ext : str
+            Extension of the output file; png, pdf, etc.
+        transparent : bool
+            If make background transparent or not.
+        dpi : float
+            dpi resolution.
+        '''
         self.fig.savefig(outname + '.' + ext, transparent=transparent, dpi = dpi)
 
 
@@ -281,48 +338,82 @@ class AstroCanvas():
 
         Parameters
         ----------
-        image (Imfits): Input image.
-        iaxis (int): Index of the AstroCanvas axes, i.e., index of the panel where you plot.
-        imscale (list): Extent of the plot. Must be given as [xmin, xmax, ymin, ymax],
-            where each parameter is the minimum or maximum value of the axis.
-        color (bool): If plot in color or not.
-        cmap (str): Color map.
-        colorbar (bool): If plot colorbar or not.
-        cbaroptions (list): Setting for colorbar. Must be give as [location, width, pad].
-            The location must be 'top', 'right', 'bottom', or 'left'. 
+        image : Imfits object
+            Input image give as an Imfits object.
+        iaxis : int
+            Index of the axis, on which the intensity map will be plotted.
+        imscale : list
+            Extent of the map to show, given as [xmin, xmax, ymin, ymax].
+        color : bool
+            If plot in color or not.
+        cmap : str, Matplotlib color map code
+            Map color code.
+        colorbar : bool
+            If plot the color bar or not.
+        cbaroptions : list
+            Setting for the color bar, give as [location, width, pad].
+            The location can be 'top', 'right', 'bottom', or 'left'. 
             The width and padding can be specified by parcentage of the extent of the plot.
             E.g., ['top', '3%', '3%'].
-        vmin, vmax (float): Minimun and maximun values of the color scale.
-        contour (bool): If plot with contours or not.
-        clevels (ndarray): Contour levels. Must be give as absolute values.
-        ccolor (str): Contour color.
-        clw (float): Contour widths
-        color_norm (str or tuple): Colorscale normalization. Default is linear.
-            Currently-supported formats are 'log', ('asinhstretch', a), or (func, func_inverse), 
-            where func1 and func2 are arbitoral functions which will determine 
+        vmin : float
+            Minimun value of the color scale.
+        vmax : float
+            Maximun value of the color scale.
+        contour : bool
+            If plot the image with contours or not.
+        clevels : ndarray
+            Contour levels, give in absolute values.
+        ccolor : str
+            Contour color.
+        clw : float
+            Contour widths.
+        color_norm : str or tuple
+            Color-scale normalization. Default is linear.
+            Supported formats are currently 'log', ('asinhstretch', a), or (func, func_inverse), 
+            where func and func_inverse are arbitoral functions which determine 
             the colorscale. For the last option, refer mpl.colors.FuncNorm for more details.
-        vaxis (int): Index of the 3rd (typically velocity) axis, if the input image is in three dimension.
-        saxis (int): Index of the 4th (typically stokes) axis, if the input image is in four dimension.
-        xticks, yticks (list): Ticks for x and y axis.
-        absolutecoords (bool): Make plots with absolute coordinates if True. 
+            When using 'asinhstretch', a is a float value to specify the color strech.
+        vaxis : int
+            Index of the 3rd (typically velocity) axis, if the input image is in more than two dimensions.
+        saxis : int
+            Index of the 4th (typically stokes) axis, if the input image is in more than three dimension.
+        xticks : list
+            Ticks for x axis.
+        yticks : list
+            Ticks for y axis.
+        absolutecoords : bool
+            Make plots with absolute coordinates if True. 
             This option is not fully supported, and may result in weired plot axes.
-        scalebar (list): Add scale bar. Must be given as [] or [].
-        plot_beam (bool): Plot observing beam or not.
-        bcolor (k): Color for the beam plot.
-        ccross (bool): If plot a cross at the map center or not.
-        prop_cross (list): Setting of the central cross. Must be give as [length, width, color].
+        scalebar : list
+            Add scale bar if given. Must be given as [] or [].
+        plot_beam : bool
+            Plot observing beam if True.
+        bcolor : str
+            Color of the beam.
+        ccross : bool
+            Plot a cross at the map center if True.
+        prop_cross : list
+            Property of the central cross give as [length, width, color],
+            where length and width are in the same units as those of the x- and y-axis.
             E.g., [2., 2., 'k'].
-        coord_center (str): New coordinate center. Must be given in
-            a format of '00h00m00.00s +00d00m00.00s'.
-        aspect (float): Aspect ratio of the figure.
-        interpolation (str): Interpolation style for the color plot.
-        exact_coord (bool): If True, pcolor is used rather than imshow. It will return
-            correct results when grid spacing of the input image is not uniform.
-        inmode (str): If 'data', then array given in the 'data' parameter will be used for plot
-            while other info like plot extent is from the input image.
-        data (ndarray): Data to be plotted instead of the input Imfits image.
-        outname (str): If given, the figure will be saved with the output file name.
-        transparent (bool): Make the background transparent or not.
+        coord_center : str
+            New coordinate center, given as '00h00m00.00s +00d00m00.00s'.
+        aspect : float
+            Aspect ratio of the axis.
+        interpolation : str
+            Interpolation style for the color plot.
+        exact_coord : bool
+            pcolor is used rather than imshow if True.
+            Better to use when grid spacing of the input image is not uniform.
+        inmode : str
+            If 'data', then ndarray given by the data parameter will be used for plot
+            while other info like the map extent is taken from the input image.
+        data : ndarray
+            Data to plot instead of the input Imfits image.
+        outname : str
+            An output file name used to save the figure. The figure will be saved with the name if given.
+        transparent : bool
+            If make the figure background transparent or not.
         '''
         # axis
         ax = self.axes[iaxis]
@@ -490,6 +581,9 @@ class AstroCanvas():
 
     def plot_vectors(self, image, iaxis=0, norm=1., pivot='mid', 
         headwidth=1., headlength=0.001, width=0.01, color='red',):
+        '''
+        Plot polarization (or B-field) vectors attached with the image.
+        '''
         add_vectors(image, self.axes[iaxis], norm=norm, pivot=pivot, 
             headwidth=headwidth, headlength=headlength, 
             width=width, color=color,)
@@ -498,45 +592,104 @@ class AstroCanvas():
 
     # Channel maps
     def channelmaps(self, image, imscale=[], data=None,
-        color=True, cmap='PuBuGn', outname=None,
-        vmin=None, vmax=None, contour=True, clevels=[], ccolor='k',
-        nrow=5, ncol=5, velmin=None, velmax=None, nskip=1, clw=0.5, color_norm=None,
+        color=True, cmap='PuBuGn',
+        vmin=None, vmax=None, contour=True, clevels=[], ccolor='k', clw=0.5,
+        nrow=5, ncol=5, velmin=None, velmax=None, nskip=1, color_norm=None,
         xticks=[], yticks=[], vsys=None, scalebar=[],
-        ccross=True, prop_cross=[None, 1., 'k'], bcolor='k', 
-        cbarticks=None, coord_center=None, sbar_vertical=False,
-        vlabel_on=True, colorbar=True, cbarlabel='', alpha = 1.,
-        plotall=False, absolutecoords=False, plot_beam=True, txtcolor='k'):
+        ccross=True, prop_cross=[None, 1., 'k'], plot_beam=True, bcolor='k', 
+        coord_center=None, vlabel_on=True, txtcolor='k', 
+        colorbar=True, cbarlabel='', cbarticks=None, alpha = 1.,
+        plotall=False, outname=None, absolutecoords=False,):
         '''
         Draw channel maps.
 
         Parameters
         ----------
-        image: Input image. Must be Imfits object.
-        imscale: scale to be shown (arcsec). It must be given as [xmin, xmax, ymin, ymax].
-        color (bool): If True, images will be shown in colorscale. Default is False.
-            cmap: color of the colorscale.
-            vmin: Minimum value of colorscale. Default is None.
-            vmax: Maximum value of colorscale. Default is the maximum value of the self cube.
-            logscale (bool): If True, the color will be shown in logscale.
-        contour (bool): If True, images will be shown with contour. Default is True.
-            clevels (ndarray): Contour levels. Input will be treated as absolute values.
-            ccolor: color of contour.
-        nrow, ncol: the number of row and column of the channel map.
-        relativecoords (bool): If True, the channel map will be produced in relative coordinate. Abusolute coordinate mode is (probably) coming soon.
-        velmin, velmax: Minimum and maximum velocity to be shown.
-        vsys: Systemic velicity [km/s]. If no input value, velocities will be described in LSRK.
-        csize: Caracter size. Default is 9.
-        ccross: If True, a central star or the center of an self will be shown as a cross.
-        prop_cross: Detailed setting for the cross showing stellar position.
-         np.array(['length','width','color']) or np.array(['length','width','color', 'coordinates']).
-        logscale (bool): If True, the color scale will be in log scale.
-        coord_center (str): Put an coordinate for the map center. The shape must be '00h00m00.00s 00d00m00.00s', or
-         'hh:mm:ss.ss dd:mm:ss.ss'. RA and DEC must be separated by space.
-        locsym: Removed. A factor to decide locations of symbols (beam and velocity label). It must be 0 - 1.
-        tickcolor, axiscolor, labelcolor, txtcolor: Colors for the maps.
-        scalebar (array): If it is given, scalebar will be drawn. It must be given as [barx, bary, bar length, textx, texty, text].
-                           Barx, bary, textx, and texty are locations of a scalebar and a text in arcsec.
-        nskip: the number of channel skipped
+        image : Imfits object
+            Input image in the Imfits object.
+        imscale : list
+            Image extent to show. It must be given as [xmin, xmax, ymin, ymax]
+            in unit of arcsec.
+        data : ndarray or None
+            Plot given data instead of the input Imfits image if given.
+            Other map information such as map extent is taken from the input Imfits image.
+        color : bool
+            Show the image in color scale if True. Default is False.
+        cmap : str
+            color of the colorscale.
+        vmin : float or None
+            Minimum value of the color scale. Default is the minimum value of the data.
+        vmax : float or None
+            Maximum value of the color scale. Default is the maximum value of the data.
+        contour : bool
+            Show the image with contours if True. Default is True.
+        clevels : ndarray or None
+            Contour levels. Default is 0.2, 0.4, 0.6, and 0.8 times the maximum value of the data.
+        ccolor : str
+            Contour color.
+        clw : float
+            Contour widths.
+        nrow : int
+            Number of rows, required if no axes were added in AstroCanvas.
+        ncol : int
+            Number of columns, required if no axes were added in AstroCanvas.
+        velmin : float
+            Minimum velocity to show.
+        velmax : float
+            Maximum velocity to show.
+        nskip : int
+            Steps to skip and show channels.
+        color_norm : str or tuple
+            Color-scale normalization. Default is linear.
+            Supported formats are currently 'log', ('asinhstretch', a), or (func, func_inverse), 
+            where func and func_inverse are arbitoral functions which determine 
+            the colorscale. For the last option, refer mpl.colors.FuncNorm for more details.
+            When using 'asinhstretch', a is a float value to specify the color strech.
+        xticks : list
+            Ticks for x axis.
+        yticks : list
+            Ticks for y axis.
+        vsys : float or None
+            Systemic velicity in km/s. If given, velocities will be labeled in the relative velocity
+            with respect to the systemic velocity rather than in LSRK.
+        scalebar : list
+            Add scale bar if given. 
+            Can be given as either of two formats; [barlength, bartext, loc, barcolor, fontsize] or 
+            [barx, bary, barlength, textx, texty, bartext, barcolor, fontsize].
+            See drawmaps.add_scalebar for more details.
+        ccross : bool
+            Plot a cross at the map center if True.
+        prop_cross : list
+            Property of the central cross give as [length, width, color],
+            where length and width are in the same units as those of the x- and y-axis.
+            E.g., [2., 2., 'k'].
+        plot_beam : bool
+            Plot observing beam if True.
+        bcolor : str
+            Color of the beam.
+        coord_center : str
+            New map center given as'00h00m00.00s 00d00m00.00s', or
+            'hh:mm:ss.ss dd:mm:ss.ss' assuming RA DEC.
+        vlabel_on : bool
+            Show velocity of each channel if True.
+        txtcolor : str
+            Velocity label color.
+        colorbar : bool
+            Show color bar if True.
+        cbarlabel : str
+            Color bar label.
+        cbarticks : ndarray
+            Color bar ticks.
+        alpha : float
+            Transparency alpha for color plot.
+        plotall : bool
+            Plot all channels by seperating output files if True. Default is False.
+        outname : str
+            An output file name used to save the figure. 
+            The figure will be saved with the name when plotall = True.
+        absolutecoords : bool
+            Make plots with absolute coordinates if True. 
+            This option is not fully supported, and may result in weired plot axes.
         '''
 
         # grid
@@ -724,7 +877,7 @@ class AstroCanvas():
                     #label
                     self.axes[(nrow-1)*ncol].set_xlabel(xlabel)
                     self.axes[(nrow-1)*ncol].set_ylabel(ylabel)
-                    # remove blank pannel
+                    # remove blank panel
                     if gridi != gridimax+1 and gridi != 0:
                         while gridi != gridimax+1:
                             #print gridi
@@ -749,7 +902,7 @@ class AstroCanvas():
                 else:
                     break
 
-        # On the bottom-left corner pannel
+        # On the bottom-left corner panel
         # Labels
         self.axes[(nrow-1)*ncol].set_xlabel(xlabel)
         self.axes[(nrow-1)*ncol].set_ylabel(ylabel)
@@ -763,7 +916,7 @@ class AstroCanvas():
         # colorbar
         if color and ax and colorbar:
             cax, cbar = self.add_colorbar(imcolor, cbarlabel=cbarlabel,)
-        # remove blank pannel
+        # remove blank panel
         if gridi != gridimax+1 and gridi != 0:
             while gridi != gridimax+1:
                 #print gridi
@@ -782,11 +935,77 @@ class AstroCanvas():
         cbaroptions=('right', '3%', '0%'), cbarlabel=r'(Jy beam$^{-1}$)',
         iaxis=0, inmode=None, data=None, outname=None, transparent=True):
         '''
-        Draw the PV diagram.
+        Draw a PV diagram.
 
         Parameters
         ----------
-         - outname:
+        image : Imfits object
+            Input image in the Imfits object.
+        color : bool
+            Show the image in color scale if True. Default is False.
+        cmap : str
+            color of the colorscale.
+        color_norm : str or tuple
+            Color-scale normalization. Default is linear.
+            Supported formats are currently 'log', ('asinhstretch', a), or (func, func_inverse), 
+            where func and func_inverse are arbitoral functions which determine 
+            the colorscale. For the last option, refer mpl.colors.FuncNorm for more details.
+            When using 'asinhstretch', a is a float value to specify the color strech.
+        vmin : float or None
+            Minimum value of the color scale. Default is the minimum value of the data.
+        vmax : float or None
+            Maximum value of the color scale. Default is the maximum value of the data.
+        contour : bool
+            Show the image with contours if True. Default is True.
+        clevels : ndarray or None
+            Contour levels. Default is 0.2, 0.4, 0.6, and 0.8 times the maximum value of the data.
+        ccolor : str
+            Contour color.
+        lw : float
+            Contour widths.
+        pa : float
+            Position angle of the PV cut, used to calculate 1D beam FWHM along the cut if given.
+        vrel : bool
+            Show velocity in the relative velocity to the systemic velocity rather than LSR velocity
+            if True.
+        vsys : float or None
+            Systemic velicity in km/s. Used if vrel = True.
+        x_offset : bool
+            Set offset to x axis, and velocity to y axis if True. 
+            Default is False, which sets offset to y axis.
+        ratio : float
+            Aspect ratio of the axis.
+        clip : float or None
+            Clip data having values below the 'clip' value.
+        plot_res : bool
+            Plot spatial and velocity resolutions if True.
+        xlim : list
+            x range for the plot.
+        ylim : list
+            y range for the plot.
+        ln_hor : bool
+            Plot horizontal line to show y=0 or vsys.
+        ln_var : bool
+            Plot vertical line to show x=0 or vsys.
+        alpha : float
+            Transparency alpha for color plot.
+        colorbar : bool
+            Show color bar if True.
+        cbaroptions : list or tuple
+            Color bar setting given as (location, width, padding).
+        cbarlabel : str
+            Color bar label.
+        iaxis : int
+            Axis index for plot.
+        inmode : str
+            If 'data', then ndarray given by the data parameter will be used for plot
+            while other info like the map extent is taken from the input image.
+        data : ndarray
+            Data to plot instead of the input Imfits image.
+        outname : str
+            An output file name used to save the figure. The figure will be saved with the name if given.
+        transparent : bool
+            Make the figure background transparent if True.
         '''
 
         # Modules
@@ -969,9 +1188,35 @@ class AstroCanvas():
 
 
     def rgb_plot(self, image_r = None, image_g = None, image_b = None, 
-        reference = 'R', normalize = True, ftune_rgb = (1.,1., 1,), iaxis = 0,
+        reference = 'R', normalize = True, weight_rgb = (1.,1., 1,), iaxis = 0,
         stretch=0.5, scalebar = None
         ):
+        '''
+        Make RGB plot. It wraps astropy.visualization.make_lupton_rgb.
+
+        Parameters
+        ----------
+        image_r : Imfits object or None
+            Red image.
+        image_g : Imfits object or None
+            Green image.
+        image_b : Imfits object or None
+            Blue image.
+        reference : {'R', 'G', 'B'}
+            Reference image to scale other images.
+        normalization : bool
+            Normalize each image with the intensity peak if True.
+        weight_rgb : tuple
+            Weight of each color. Must be given as 
+            (weight_for_red, weight_for_green, weight_for_blue), where each
+            weight takes a float value from zero to one.
+        iaxis : int
+            Axis index.
+        stretch : float
+            The linear stretch of the image.
+        scalebar : list
+            Scale bar options. See add_scalebar for more details.
+        '''
         # at least one image
         if (image_r is None) * (image_b is None) * (image_g is None):
             print('ERROR\trgb_plot: at least one of R, G, or B images must be provided.')
@@ -1029,9 +1274,9 @@ class AstroCanvas():
             data_r, data_g, data_b = data_1, data_2, data_ref
 
         if normalize:
-            if image_r is not None: data_r *= ftune_rgb[0] / np.nanmax(data_r)
-            if image_g is not None: data_g *= ftune_rgb[1] / np.nanmax(data_g)
-            if image_b is not None: data_b *= ftune_rgb[2] / np.nanmax(data_b)
+            if image_r is not None: data_r *= weight_rgb[0] / np.nanmax(data_r)
+            if image_g is not None: data_g *= weight_rgb[1] / np.nanmax(data_g)
+            if image_b is not None: data_b *= weight_rgb[2] / np.nanmax(data_b)
 
         for d_i in [data_r, data_g, data_b]:
             d_i[d_i < 0.] = 0. # remove minus
@@ -1060,6 +1305,31 @@ class AstroCanvas():
         tickcolor: str = 'k', 
         axiscolor: str = 'k', 
         labelcolor: str = 'k'):
+        '''
+        Add a color bar to an axis or a grid.
+
+        Parameters
+        ----------
+        cim :
+            Color image as an output of imshow, pcolor or relevant functions of matplotlib.
+        iaxis : int
+            Axis index.
+        cbarlabel : str
+            Color bar label.
+        cbaroptions : list
+            Color bar properties given as [location, width, padding].
+            Location can be 'right', 'left', 'top', or 'bottom'.
+            Width and padding can be given as a parcentage of the axis extent.
+            Default is ['right', '3%', '0%'].
+        ticks : ndarray or None
+            Color bar ticks.
+        tickcolor : str
+            Tick color.
+        axiscolor : str
+            Color bar axis color.
+        labelcolor : str
+            Color of the color bar label.
+        '''
         # parameter
         orientations = {
         'right': 'vertical',
@@ -1786,7 +2056,7 @@ def channelmaps(self, grid=None, data=None, outname=None, outformat='pdf',
             else:
                 break
 
-    # On the bottom-left corner pannel
+    # On the bottom-left corner panel
     # Labels
     grid[(nrow-1)*ncol].set_xlabel(xlabel)
     grid[(nrow-1)*ncol].set_ylabel(ylabel)
@@ -2065,20 +2335,45 @@ def pvdiagram(self,outname,data=None,header=None,ax=None,outformat='pdf',color=T
     return ax
 
 
-def generate_grid(nrow, ncol, figsize=(11.69, 8.27),
-    cbar_mode=None, axes_pad=(0.2, 0.2), share_all=True,
-    cbaroptions=['right', '3%', '0%'], label_mode='1'):
+def generate_grid(nrow, ncol, axes_pad=(0.2, 0.2), 
+    figsize=(11.69, 8.27), share_all=True,
+    cbar_mode=None, cbaroptions=['right', '3%', '0%'], label_mode='1'):
     '''
-    Generate grid to contain multiple figures. Just using ImageGrid of matplotlib but adjust default parameters for convenience.
-     For more detail of the function, check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
+    Generate grid using ImageGrid of matplotlib.
+    For more detail of the function, 
+    check https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.axes_grid1.axes_grid.ImageGrid.html.
 
     Parameters
     ----------
-     nrow(int): Number of rows
-     ncol(int): Number of columns
-     axes_pad (tuple or float): Padding between axes. In cases that tuple is given, it will be treated as (vertical, horizontal) padding.
-     share_all (bool): Whether all axes share their x- and y-axis.
-     cbarmode: If each, colorbar will be shown in each axis. If single, one common colorbar will be prepared. Default None.
+    nrow : int
+        Number of rows.
+    ncol : int
+        Number of columns.
+    axes_pad : tuple or float
+        Padding between axes. If given as tuple, it will be treated as (vertical, horizontal) padding.
+    figsize : tuple
+        Figure size. Default is (11.69, 8.27), corresponding to A4 landscape.
+    share_all : bool
+        If all axes share their x- and y-axis or not.
+    cbar_mode : {'each', 'signle', 'edge'} or None
+        Used when imagegrid=True to specify a colorbar mode.
+        'each' puts a color bar aside on each panel, 'single' puts a single ecolor bar 
+        on the figure, and 'edge' puts color bars on panels at the edge of the figure.
+        None will generate no color bar.
+    cbaroptions : list or tuple
+        Used when imagegrid=True to setup a colorbar(s).
+        Must be given in a format of [location, width, padding]. 
+        The location can be 'right', 'top', 'left', or 'bottom'. 
+        The width and padding can be given as a percentage of the axis width
+        in str; e.g., ['right', '3%', '3%'].
+    label_mode : {'L', '1', or 'all'}
+        Used when imagegrid=True to setup axis labels. 'L' puts axis labels on panels at
+        the left and bottom edge of the figure. '1' puts axis labels only on the bottom-left panel.
+        'all' puts axis labels on all panels.
+
+    Returns
+    -------
+    grid : ImageGrid
     '''
     from mpl_toolkits.axes_grid1 import ImageGrid
 
@@ -2097,17 +2392,35 @@ def generate_grid(nrow, ncol, figsize=(11.69, 8.27),
 def trim_data(data, x, y, v,
     xlim: list = [], ylim: list = [], vlim: list = []):
     '''
-    Clip a cube image with given axis ranges.
+    Trim a cube image by given axis ranges.
 
     Parameters
     ----------
-        data (array): Data
-        x (array): x axis
-        y (array): y axis
-        v (array): v axis
-        xlim (list): x range. Must be given as [xmin, xmax].
-        ylim (list): y range. Must be given as [ymin, ymax].
-        vlim (list): v range. Must be given as [vmin, vmax].
+    data : ndarray
+        Data array.
+    x : ndarray
+        x axis of the data
+    y : ndarray
+        y axis of the data
+    v : ndarray
+        v axis of the data
+    xlim : list
+        x range given as [xmin, xmax].
+    ylim : list
+        y range given as [ymin, ymax].
+    vlim : list
+        v range given as [vmin, vmax].
+
+    Returns
+    -------
+    data : ndarray
+        Trimmed data.
+    x : ndarray
+        Trimmed x axis.
+    y : ndarray
+        Trimmed y axis.
+    v : ndarray
+        Trimmed v axis. Output only when the input data are 3D.
     '''
     data = np.squeeze(data)
     if len(data.shape) == 2:
@@ -2146,6 +2459,22 @@ def trim_data(data, x, y, v,
 
 
 def color_normalization(color_norm, vmin, vmax):
+    '''
+    Return color normalization.
+
+    Parameters
+    ----------
+    color_norm : str or tuple
+        Color normalization. 
+        Supported formats are currently 'log', ('asinhstretch', a), or (func, func_inverse), 
+        where func and func_inverse are arbitoral functions which determine 
+        the colorscale. For the last option, refer mpl.colors.FuncNorm for more details.
+        When using 'asinhstretch', a is a float value to specify the color strech.
+    vmin : float
+        Minimum value for the color scale.
+    vmax : float
+        Maximum value for the color scale.
+    '''
     # color scale
     if type(color_norm) == str:
         if color_norm == 'log':
@@ -2169,6 +2498,14 @@ def color_normalization(color_norm, vmin, vmax):
 
 
 def index_between(t, tlim, mode='all'):
+    '''
+    Calculate indices of an axis within a given range.
+
+    Parameters
+    ----------
+    t : ndarray
+        Axis.
+    '''
     if not (len(tlim) == 2):
         if mode=='all':
             return np.full(np.shape(t), True)
@@ -2191,17 +2528,26 @@ def index_between(t, tlim, mode='all'):
             return (tlim[0] <= t) * (t <= tlim[1])
 
 
-def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
-    zorder=10.):
+def add_cross(ax, 
+    loc=(0,0), length=None, 
+    width=1., color='k', zorder=10.):
     '''
-    Add a cross in a map to indicate a location of, for example, a stellar object.
+    Add a cross in a plot.
 
-    Args:
-     - ax: axis
-     - loc (tuple or str): coordinates for plot.
-     - length: line length for the cross
-     - width: line width
-     - color: line color
+    Parameters
+    ----------
+    ax : Matploltlib Axis
+        A matplotlib axis on which make a plot.
+    loc : tuple or list
+        (x, y) coordinates of the cross position.
+    length : float
+        Line length.
+    width : float
+        Line width.
+    color : str
+        Color of the cross.
+    zorder : float
+        zorder.
     '''
     if length is None:
         length = np.abs(ax.get_xlim()[1] - ax.get_xlim()[0])*0.1
@@ -2216,9 +2562,37 @@ def add_cross(ax, loc=(0,0), length=None, width=1., color='k',
     ax.vlines(loc_x, loc_y-length*0.5, loc_y+length*0.5, lw=width, color=color, zorder=zorder)
 
 
-def add_sources(ax, image, coords, marker = 'cross', 
-    length=None, width=1., color='k', zorder=10., alpha = 1., 
+def add_sources(ax, image, coords,
+    length=None, width=1., color='k', zorder=10.,
     frame = 'icrs', unit=(u.hour, u.deg), equinox='J2000'):
+    '''
+    Add crosses indicating source positions in a plot.
+    The positions are supposed to be given in absolute coordinates.
+
+    Parameters
+    ----------
+    ax : Matploltlib Axis
+        A matplotlib axis on which make a plot.
+    image : Imfits object
+        An Imfits image, from which the map center is read.
+    coords : str or list
+        Coordinates to indicate with crosses, given as 'x y'.
+        E.g., 'hh:mm:ss.ss dd:mm:ss.ss' if RA-Dec.
+    length : float
+        Line length of the crosses.
+    width : float
+        Width of the crosses.
+    color : str
+        Color of the crosses.
+    zorder : float
+        zorder.
+    frame : str
+        Coordinate frame.
+    unit : tuple
+        Units of (x,y) coordinates given as astropy units.
+    equinox : str
+        Equinox if required.
+    '''
     # check input
     if type(coords) == str:
         coords = [coords]
@@ -2231,11 +2605,13 @@ def add_sources(ax, image, coords, marker = 'cross',
     # image center
     cc = SkyCoord(image.cc[0], image.cc[1], frame=image.frame.lower(), 
             unit=(u.deg, u.deg), equinox=image.equinox)
+    
     # plot
     for coord in coords:
         xc, yc = coord.split(' ')
         c_plt  = SkyCoord(xc, yc, frame=frame.lower(), 
             unit=unit, equinox=equinox)
+        cc = cc.transform_to(c_plt.frame) # to ensure the same frame
         x_plt, y_plt = cc.spherical_offsets_to(c_plt)
         x_plt = x_plt.arcsec # deg to arcsec
         y_plt = y_plt.arcsec # deg to arcsec
@@ -2247,6 +2623,30 @@ def add_sources(ax, image, coords, marker = 'cross',
 
 def add_line(ax, length=None, pa=0., cent=(0,0), width=1., color='k',
     ls='-', alpha=1., zorder=10.):
+    '''
+    Add a line in a plot, sets by the central position, lenght and position angle.
+
+    Parameters
+    ----------
+    ax : Matploltlib Axis
+        A matplotlib axis on which make a plot.
+    length : float
+        Line length.
+    pa : float
+        Position angle of the line, measured from north toward east.
+    cent : tuple
+        Central position of the line given as (x,y).
+    width : float
+        Line width.
+    color : str
+        Line color.
+    ls : str
+        Line style.
+    alpha : float
+        Line transparency.
+    zorder : float
+        zorder.
+    '''
     if length is None:
         length = np.sqrt(
             (ax.get_xlim()[1] - ax.get_xlim()[0])**2 + (ax.get_ylim()[1] - ax.get_ylim()[0])**2
@@ -2262,8 +2662,32 @@ def add_line(ax, length=None, pa=0., cent=(0,0), width=1., color='k',
 
 def add_box(ax, xc, yc, xl, yl, width=1., color='k', 
     zorder=10., ls='--', angle=0.0):
-    import matplotlib.patches as patches
+    '''
+    Add a box in a plot.
 
+    Parameters
+    ----------
+    ax : Matploltlib Axis
+        A matplotlib axis on which make a plot.
+    xc : float
+        x coordinate of the box center.
+    yc : float
+        y coordinate of the box center.
+    xl : float
+        x length of the box.
+    yl : float
+        y length of the box.
+    width : float
+        Line width.
+    color : str
+        Line color.
+    ls : str
+        Line style.
+    zorder : float
+        zorder.
+    angle : float
+        Rotation angle of the box in degree.
+    '''
     # box
     rect = patches.Rectangle((xc - xl*0.5, yc - yl*0.5), xl, yl, 
         ls=ls, color=color, fill=False, linewidth=width, zorder=zorder, angle=angle)
@@ -2272,6 +2696,16 @@ def add_box(ax, xc, yc, xl, yl, width=1., color='k',
 
 def add_vectors(image, ax, norm=1., pivot='mid', 
     headwidth=1., headlength=0.001, width=0.01, color='red',):
+    '''
+    Add vectors on a plot.
+
+    Parameters
+    ----------
+    image : Imfits object
+        An Imfits image with vectors attached.
+    ax : Matploltlib Axis
+        A matplotlib axis on which make a plot.
+    '''
     if 'vectors' not in image.__dict__.keys():
         print('ERROR\tadd_vectors: Vectors are not attached.')
         return 0
@@ -2286,10 +2720,39 @@ def add_vectors(image, ax, norm=1., pivot='mid',
     return ax
 
 
-def add_beam(ax, bmaj: float, bmin: float, bpa: float,
- bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1.,
- zorder: float = 10., fill = True, ls = '-'):
-    import matplotlib.patches as patches
+def add_beam(ax, bmaj: float, bmin: float, bpa: float, 
+    bcolor: str = 'k', loc: str = 'bottom left', alpha: float = 1., 
+    zorder: float = 10., fill = True, ls = '-'):
+    '''
+    Add a beam ellipse to a plot.
+
+    Parameters
+    ----------
+    ax : Matploltlib Axis
+        A matplotlib axis on which make a plot.
+    bmaj : float
+        Beam major FWHM.
+    bmin : float
+        Beam minor FWHM.
+    bpa : float
+        Beam position angle in degree.
+    bcolor : str
+        Beam color.
+    loc : str or tuple
+        Location of the beam. Can be 'bottom left', 'bottom right',
+        'top left', 'top right', or (x, y). x and y take values between 0 and 1,
+        where 0 corresponds to the most left or bottom, and 1 corresponds to
+        the most right or top.
+    alpha : float
+        Transparency.
+    zorder : float
+        z order.
+    fill : bool
+        If True, plot the beam with a filled ellipse; otherwise plot with an open ellipse.
+        Default is True.
+    ls : str
+        Line style.
+    '''
 
     coords = {'bottom left': (0.1, 0.1),
     'bottom right': (0.9, 0.1),
@@ -2330,6 +2793,9 @@ def add_beam(ax, bmaj: float, bmin: float, bpa: float,
 def add_colorbar_togrid(cim, grid, cbarlabel: str='',
     tickcolor: str = 'k', axiscolor: str = 'k', labelcolor: str = 'k',
     cbar_loc = 'right'):
+    '''
+    Add color bar to ImageGrid.
+    '''
     # parameter
     orientations = {
     'right': 'vertical',
@@ -2420,17 +2886,29 @@ def add_colorbar_toaxis(ax, cim=None,
 
     Parameters
     ----------
-    loc (str): Location of the colorbar. Must be choosen from right, left, top or bottom.
-    pad (str or float): Pad between the image and colorbar. Must be given as percentage (e.g., '3%') or
+    loc : {'right', 'left', 'top', 'bottom'}
+        Location of the colorbar.
+    pad : str or float
+        Pad between the axis and colorbar given as percentage (e.g., '3%') or
         fraction (e.g, 0.03) of the full plot width.
-    width (str or float): Width of the colorbar. Must be given as percentage or fraction of 
+    width : str or float
+        Width of the colorbar given as percentage or fraction of 
         the full plot width.
-    length (str or float): Length of the colorbar. Must be given as percentage or fraction of 
+    length : str or float
+        Length of the colorbar given as percentage or fraction of 
         the full plot width.
-    cbaroptions (list): Colorbar options which set location, pad, width all at once.
-    ticks (list): Ticks of colorbar. Optional parameter.
-    fontsize (float): Fontsize of the colorbar label and tick labels. Optional parameter.
-    tickcolor, labelcolor (str): Set tick and label colors.
+    cbaroptions : list
+        Color bar options given as [loc, pad, width],
+        which set location, pad, and width all at once.
+        If given, the loc, pad and width parameters are ignored.
+    ticks : list or ndarray, optional
+        Colorbar ticks.
+    fontsize : float, optional
+        Font size of the colorbar and tick labels.
+    tickcolor : str
+        Tick color.
+    labelcolor : str
+        Label color.
     '''
     # parameters to set orientation
     orientations = {
@@ -2496,8 +2974,37 @@ def add_colorbar_toaxis(ax, cim=None,
 
 def add_scalebar(ax, scalebar: list, orientation='horizontal',
     loc: str = 'bottom right', barcolor: str = 'k', fontsize: float = 11.,
-    lw: float = 2., zorder: float = 10., alpha: float = 1.,
-    coordinate_mode = 'relative'):
+    lw: float = 2., zorder: float = 10., alpha: float = 1.,):
+    '''
+    Add a scale bar to an axis.
+
+    Parameters
+    ----------
+    ax : matplotlib Axis object
+        Matplotlib Axis object.
+    scalebar : list
+        Properties of the scale bar. It can be given as either of two formats;
+        [barlength, bartext, loc, barcolor, fontsize] or 
+        [barx, bary, barlength, textx, texty, bartext, barcolor, fontsize].
+        barlength is the length of the scaler bar, and bartext is the scaler bar label. 
+        loc is the location of the scale bar; it can be 'bottom left',
+        'bottom right', 'top left', 'top right', or a list of 
+        [(bar_xloc, bar_yloc), (text_xloc, text_yloc)]. xxx_xloc/xxx_yloc
+        takes a value from zero to one, which corresponds to left/bottom and right/top
+        of the axis, respectively.
+        barcolor is the color of the scaler bar and text.
+        fontsize is the font size for the label.
+        For the second option, barx and bary are exact coordinates of the scaler bar, and 
+        textx and texty are exact coordiantes of the scale bar label.
+    orientation : {'horizontal', 'vertical'}
+        Orientation of the scale bar.
+    lw : float
+        Bar width.
+    zorder : float
+        z order.
+    alpha : float
+        Transparency.
+    '''
 
     coords = {'bottom left': (0.1, 0.1),
             'bottom right': (0.9, 0.1),
@@ -2585,12 +3092,16 @@ def add_scalebar(ax, scalebar: list, orientation='horizontal',
 
 def change_aspect_ratio(ax, ratio, plottype='linear'):
     '''
-    This function change aspect ratio of figure.
-    Parameters:
-        ax: ax (matplotlit.pyplot.subplots())
-            Axes object
-        ratio: float or int
-            relative x axis width compared to y axis width.
+    Change aspect ratio of an axis.
+
+    Parameters
+    ----------
+    ax : matplotlib Axes object
+        Matplotlib axis.
+    ratio: float or int
+        Relative x width compared to y width.
+    plottype : {'linear', 'loglog', 'linearlog', 'loglinear'}
+        Scale of x and y axes.
     '''
     if plottype == 'linear':
         aspect = (1/ratio) *(ax.get_xlim()[1] - ax.get_xlim()[0]) / (ax.get_ylim()[1] - ax.get_ylim()[0])
