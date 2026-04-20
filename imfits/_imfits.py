@@ -16,7 +16,7 @@ from astropy.coordinates import SkyCoord
 import astropy.coordinates
 import astropy.units as u
 #import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, RegularGridInterpolator
 
 
 ### Constants (in cgs)
@@ -1026,8 +1026,6 @@ class Imfits():
                 ]), axis = 0
             )
 
-
-
     def convert_units(self, conversion='IvtoTb'):
         '''
         Convert unit of intensity.
@@ -1106,7 +1104,6 @@ class Imfits():
         # add offset from cetner
         self.vectors.insert(self.vectors.columns.get_loc('DEC')+1, 'delDEC', ddec.value)
         self.vectors.insert(self.vectors.columns.get_loc('DEC')+1, 'delRA', dra.value)
-
 
     def getmoments(self, moments=[0], vrange=[], threshold=[],
         outfits=True, outname=None, overwrite=False, i_stokes=0):
@@ -1320,7 +1317,133 @@ class Imfits():
 
         return rms_ch * self.delv * np.sqrt(nv)
 
+    def get_integrated_spectrum(self, 
+        radius = None, unit = None, vwindows = None,
+        saxis = 0):
+        '''
+        Get an integrated spectrum.
 
+        Parameters
+        ----------
+        radius : float or None
+            Circular aperture radius (arcsec).
+        unit : str or None
+            Unit of intensity.
+        vwindows : list or tuple
+            Velocity windows where lines are detected. Used to
+            calculate rms noise of the integrated spectrum with
+            line-free channels.
+
+        Returns
+        -------
+        spec : ndarray
+            Integrated spectrum as 1D ndarray.
+        err : float
+            rms noise of the integrated spectrum, measured line-free skirt.
+            Only computed when vwindows is given.
+        '''
+        if unit is None:
+            beam_area = self.beam[0] * self.beam[1] * np.pi/(4.*np.log(2.))
+            dA =  - self.delx * self.dely * 3600. * 3600. / beam_area
+        else:
+            dA = 1
+
+        if self.naxis == 3:
+            data = self.data.copy()
+        elif self.naxis == 4:
+            data = self.data.copy()[saxis,:,:,:]
+        else:
+            print('ERROR\tget_integrated_spectrum: naxis must be 3 or 4.')
+            print('ERROR\tget_integrated_spectrum: check input data shape.')
+            return 0
+
+        if radius is not None:
+            _xx = self.xx.copy() *3600
+            _yy = self.yy.copy() *3600
+            rr = np.sqrt(_xx ** 2 + _yy ** 2.)
+            where_mask = np.where(rr > radius)
+            data[:, where_mask[0], where_mask[1]] = np.nan # mask
+
+        spec = np.nansum(data, axis = (1,2)) * dA
+
+        if vwindows is not None:
+            if (type(vwindows[0]) == list) or (type(vwindows[0]) == tuple):
+                pass
+            else:
+                vwindows = [vwindows]
+
+            conditions = np.array([
+                (self.vaxis >= vwindows[i][0]) & (self.vaxis < vwindows[i][1])
+                for i in range(len(vwindows))])
+            indx = conditions.any(axis=0)
+            spec_masked = spec[~indx]
+            rms = np.sqrt(np.nanmean(spec_masked ** 2.))
+            return spec, rms
+        else:
+            return spec
+
+    def get_spectra(self, 
+        position,
+        interpolation_type = 'linear',
+        saxis = 0):
+        '''
+        Get spectra at given spatial coordinates.
+
+        Parameters
+        ----------
+        positions : float or None
+            Circular aperture radius (arcsec).
+        interpolation_type : {'nearest', 'linear'}
+            Interpolation type.
+        saxis : int
+            Index for the stokes axis.
+
+        Returns
+        -------
+        spec : ndarray
+            Spectra as 1D ndarray.
+        '''
+        if self.naxis == 3:
+            data = self.data.copy()
+        elif self.naxis == 4:
+            data = self.data.copy()[saxis,:,:,:]
+        else:
+            print('ERROR\tget_integrated_spectrum: naxis must be 3 or 4.')
+            print('ERROR\tget_integrated_spectrum: check input data shape.')
+            return 0
+
+        if isinstance(position[0], (float, np.floating)):
+            position = [position]
+        elif isinstance(position[0], (tuple, list, np.ndarray)):
+            pass
+        else:
+            print('ERROR\tget_spectra: position element must be tuple or float.')
+            print('ERROR\tget_spectra: check your position input.')
+            return 0
+
+        # Build interpolator
+        interp = RegularGridInterpolator(
+            (self.vaxis, self.yaxis * 3600., self.xaxis * 3600.),
+            data,
+            method=interpolation_type,
+            bounds_error=False,
+            fill_value=np.nan
+            )
+
+        # loop for positions
+        spec = np.empty((self.nv, len(position)))
+        for i, _p in enumerate(position):
+            points = np.column_stack([
+            self.vaxis,                # all velocity channels
+            np.full_like(self.vaxis, _p[1]),    # fixed y
+            np.full_like(self.vaxis, _p[0])     # fixed x
+            ])
+
+            spec[:,i] = interp(points)
+
+        if len(position) == 1:
+            spec = spec[:,0]    # drop unecessary axis
+        return spec
 
     def search_for_line_detection(self, 
         threshold, cond_area = 0.7, 
