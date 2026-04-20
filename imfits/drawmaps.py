@@ -1391,7 +1391,7 @@ class AstroCanvas():
             cbar = plt.colorbar(cim, cax=cax, 
             orientation = orientations[self._gridkwargs['cbar_location']],
             ticklocation = self._gridkwargs['cbar_location']) # ticks=cbarticks
-            cax.toggle_label(True)
+            #cax.toggle_label(True)    # removed in the latest matplotlib
 
             if cbarlabel:
                 cbar.set_label(cbarlabel, color=labelcolor,)
@@ -2806,7 +2806,8 @@ def add_colorbar_togrid(cim, grid, cbarlabel: str='',
     # plot
     cax  = grid.cbar_axes[0]
     cbar = plt.colorbar(cim, cax=cax, orientation=orientations[cbar_loc]) # ticks=cbarticks
-    cax.toggle_label(True)
+    #cax.toggle_label(True)
+    #cax.tick_params({'label' + cbar_loc: True})
     cbar.ax.yaxis.set_tick_params(color=tickcolor) # tick color
     cbar.ax.spines["bottom"].set_color(axiscolor)  # axes color
     cbar.ax.spines["top"].set_color(axiscolor)
